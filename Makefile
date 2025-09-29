@@ -45,7 +45,7 @@ $(wildcard Ext/Src/*.c)
 
 # ASM sources
 ASM_SOURCES =  \
-startup_stm32f103xb.s \
+startup_stm32f767xx.s \
 $(wildcard Core/*.s)
 
 # ASMM sources

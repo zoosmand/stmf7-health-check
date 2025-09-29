@@ -167,7 +167,7 @@ void SystemInit(void) {
   ));
   #endif
 
-  /* Set TPUI output fto ITM */
+  /* Set TPUI output to ITM */
   // PREG_SET(CoreDebug->DEMCR, CoreDebug_DEMCR_TRCENA_Pos);
   // TPI->CSPSR = 0x1;
   // TPI->FFCR = 0x102;
