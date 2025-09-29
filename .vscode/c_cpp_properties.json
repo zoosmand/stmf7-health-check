@@ -1,0 +1,100 @@
+{
+  "configurations": [
+    {
+      "name": "MacOS",
+      "includePath": [
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include/c++/14.2.1",
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include/c++/14.2.1/arm-none-eabi",
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include/c++/14.2.1/backward",
+        "${env:VSARM}/arm-gcc/lib/gcc/arm-none-eabi/14.2.1/include",
+        "${env:VSARM}/arm-gcc/lib/gcc/arm-none-eabi/14.2.1/include-fixed",
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include",
+        "${workspaceFolder}/Drivers/CMSIS/Include/",
+        "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F7xx/Include",
+        "${workspaceFolder}/Core/Inc"
+      ],
+      "defines": [
+        "DEBUG",
+        "DEFAULT_STACK_SIZE=2048",
+        "USE_DEVICE_MODE",
+        "USE_FULL_ASSERT",
+        "USE_USB_OTG_FS",
+        "HSE_VALUE=8000000",
+        "HSE_STARTUP_TIMEOUT=100",
+        "LSE_STARTUP_TIMEOUT=5000",
+        "LSE_VALUE=32768",
+        "EXTERNAL_CLOCK_VALUE=12288000",
+        "HSI_VALUE=16000000",
+        "LSI_VALUE=32000",
+        "VDD_VALUE=3300",
+        "PREFETCH_ENABLE=1",
+        "INSTRUCTION_CACHE_ENABLE=1",
+        "DATA_CACHE_ENABLE=1",
+        "STM32F767xx"
+      ],
+      "intelliSenseMode": "macos-clang-arm64",
+      "cStandard": "c23",
+      "cppStandard": "c++23",
+      "browse": {
+        "path": [
+          "${workspaceFolder}",
+          "${env:VSARM}/arm-gcc",
+          "${env:VSARM}/cache"
+        ],
+        "limitSymbolsToIncludedHeaders": false,
+        "databaseFilename": ""
+      }
+    },
+    {
+      "name": "Linux",
+      "includePath": [
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include/c++/14.2.1",
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include/c++/14.2.1/arm-none-eabi",
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include/c++/14.2.1/backward",
+        "${env:VSARM}/arm-gcc/lib/gcc/arm-none-eabi/14.2.1/include",
+        "${env:VSARM}/arm-gcc/lib/gcc/arm-none-eabi/14.2.1/include-fixed",
+        "${env:VSARM}/arm-gcc/arm-none-eabi/include",
+        "${workspaceFolder}/Drivers/CMSIS/Include",
+        "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F7xx/Include",
+        "${workspaceFolder}/Core/Inc"
+      ],
+      "defines": [
+        "DEBUG",
+        "DEFAULT_STACK_SIZE=2048",
+        "USE_DEVICE_MODE",
+        "USE_FULL_ASSERT",
+        "USE_USB_OTG_FS",
+        "HSE_VALUE=25000000",
+        "HSE_STARTUP_TIMEOUT=100",
+        "LSE_STARTUP_TIMEOUT=5000",
+        "LSE_VALUE=32768",
+        "EXTERNAL_CLOCK_VALUE=12288000",
+        "HSI_VALUE=16000000",
+        "LSI_VALUE=32000",
+        "VDD_VALUE=3300",
+        "PREFETCH_ENABLE=1",
+        "INSTRUCTION_CACHE_ENABLE=1",
+        "DATA_CACHE_ENABLE=1",
+        "STM32F767xx",
+        "__CC_ARM",
+        "__INT8_TYPE__=char",
+        "__UINT8_TYPE__=unsigned char",
+        "__INT16_TYPE__=short int",
+        "__UINT16_TYPE__=short unsigned int"
+      ],
+      "intelliSenseMode": "linux-gcc-x64",
+      "cStandard": "c23",
+      "cppStandard": "c++23",
+      "browse": {
+        "path": [
+          "${workspaceFolder}",
+          "${env:VSARM}/arm-gcc",
+          "${env:VSARM}/cache"
+        ],
+        "limitSymbolsToIncludedHeaders": false,
+        "databaseFilename": ""
+      }
+    }
+  ],
+  "version": 4
+}

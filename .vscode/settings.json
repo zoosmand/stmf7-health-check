@@ -1,0 +1,11 @@
+{
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "*.c": "c",
+        "*.h": "c",
+        "*.s": "arm",
+        "*.S": "arm",
+        "*.inc": "arm"
+    },
+    "makefile.configureOnOpen": false
+}
