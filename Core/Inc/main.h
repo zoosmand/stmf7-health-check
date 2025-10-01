@@ -31,8 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 #include "common.h"
-#include "init.h"
-#include "ethernet.h"
+#include "init_ll.h"
+#include "ethernet_ll.h"
 
 
 /* Exported types ------------------------------------------------------------*/

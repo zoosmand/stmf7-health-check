@@ -31,7 +31,7 @@ __IO uint32_t SysTickCnt;
 int main(void) {
 
   if (Init_LED()) FLAG_SET(_ASREG_, LED_BLUE_READY_flag);
-  if (Init_ETH()) FLAG_SET(_ASREG_, ETH_READY_flag);
+  if (Init_ETH_LL()) FLAG_SET(_ASREG_, ETH_READY_flag);
 
   while (1) {
     __NOP();
