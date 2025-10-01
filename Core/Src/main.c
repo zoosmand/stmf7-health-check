@@ -30,17 +30,18 @@ __IO uint32_t SysTickCnt;
   */
 int main(void) {
 
-  if (Init_LED()) FLAG_SET(_ASREG_, LED_BLUE_flag);
+  if (Init_LED()) FLAG_SET(_ASREG_, LED_BLUE_READY_flag);
+  if (Init_ETH()) FLAG_SET(_ASREG_, ETH_READY_flag);
 
   while (1) {
     __NOP();
 
-    // LED_Blink(LED_BLUE_Port, LED_BLUE_Pin);
+    // LED_Blink(LED_RED_Port, LED_RED_Pin);
     // _delay_ms(1000);
     // printf("test\n");
     // _delay_us(1000);
 
-    
+
   }
 }
 

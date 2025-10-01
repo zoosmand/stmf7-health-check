@@ -174,7 +174,8 @@ extern __IO uint32_t SysTickCnt;
 
 
 /* Peripherals is run flag definitons ----------------------------------------*/
-#define LED_BLUE_flag               0
+#define LED_BLUE_READY_flag         0
+#define ETH_READY_flag              1
 
 
 /* Exported structures -------------------------------------------------------*/
