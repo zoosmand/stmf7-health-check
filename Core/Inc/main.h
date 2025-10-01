@@ -27,11 +27,12 @@ extern "C" {
 #include <time.h>
 //
 #include "stm32f7xx.h"
+#include "stm32f7xx_it.h"
 
 /* Private includes ----------------------------------------------------------*/
 #include "common.h"
 #include "init.h"
-#include "stm32f7xx_it.h"
+#include "ethernet.h"
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -48,7 +49,6 @@ extern "C" {
 
 /* Public defines ------------------------------------------------------------*/
 
-/* Peripheral initialization statuses ----------------------------------------*/
 
 
 #ifdef __cplusplus

@@ -173,7 +173,7 @@ extern __IO uint32_t SysTickCnt;
 #define IWDG_KEY_WR_ACCESS_ENABLE   0x00005555               /*!< IWDG KR Write Access Enable  */
 
 
-/* Peripherals is run flag definitons ----------------------------------------*/
+/* Peripheral initialization statuses ----------------------------------------*/
 #define LED_BLUE_READY_flag         0
 #define ETH_READY_flag              1
 
