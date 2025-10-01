@@ -18,7 +18,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-
 /**
   * @brief  The function is responsible for resetting all peripherals,
   *         initializing the Flash interface, Systick, clocks, and
@@ -46,7 +45,7 @@ void SystemInit(void) {
 
   /* Conficure SysTick */
   SET_BIT(SysTick->CTRL, (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk));
-  SysTick->LOAD = 2160U - 1U;
+  SysTick->LOAD = 216000U - 1U;
   SysTick->VAL = 0;
   SET_BIT(SysTick->CTRL, SysTick_CTRL_ENABLE_Msk);
 
@@ -152,6 +151,17 @@ void SystemInit(void) {
   while (!(PREG_CHECK(RCC->CR, RCC_CR_PLLSAIRDY_Pos)));
 
 
+  SET_BIT(CoreDebug->DEMCR, CoreDebug_DEMCR_TRCENA_Msk);
+
+
+  SystemClocks.SystemCore       = 216000000U;
+  SystemClocks.HCLK_Freq        = 216000000U;
+  SystemClocks.PCLK1_Freq       = 54000000U;
+  SystemClocks.PCLK1_Freq_Tim   = 108000000U;
+  SystemClocks.PCLK2_Freq       = 108000000U;
+  SystemClocks.PCLK2_Freq_Tim   = 216000000U;
+  SystemClocks.PLLQ_Freq        = 48000000U;
+
 
   /*****************************************************************************************/
   /*****************************************************************************************/
@@ -180,13 +190,13 @@ void SystemInit(void) {
 
 
   /*****************************************************************************************/
-  /* IWDG */
-  IWDG->KR = IWDG_KEY_ENABLE;
-  IWDG->KR = IWDG_KEY_WR_ACCESS_ENABLE;
-  IWDG->PR =  IWDG_PR_PR & (IWDG_PR_PR_2 | IWDG_PR_PR_0); /*!< Divided by 128 */
-  IWDG->RLR = IWDG_RLR_RL & 624;                          /*<! ~2.5sec.  */
-  while (!(PREG_CHECK(IWDG->SR, IWDG_SR_PVU_Pos)));
-  IWDG->KR = IWDG_KEY_RELOAD;
+  // /* IWDG */
+  // IWDG->KR = IWDG_KEY_ENABLE;
+  // IWDG->KR = IWDG_KEY_WR_ACCESS_ENABLE;
+  // IWDG->PR =  IWDG_PR_PR & (IWDG_PR_PR_2 | IWDG_PR_PR_0); /*!< Divided by 128 */
+  // IWDG->RLR = IWDG_RLR_RL & 624;                          /*<! ~2.5sec.  */
+  // while (!(PREG_CHECK(IWDG->SR, IWDG_SR_PVU_Pos)));
+  // IWDG->KR = IWDG_KEY_RELOAD;
 
   /*****************************************************************************************/
   /* Peripheral clock */

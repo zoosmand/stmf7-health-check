@@ -124,3 +124,47 @@ void assert_failed(uint8_t *file, int line) {
   printf("Wrong parameters value: file %s on line %d\n", file, line);
 }
 #endif /* USE_FULL_ASSERT */
+
+
+
+/********************************************************************************/
+/*                               delay supply block                             */
+/********************************************************************************/
+
+__STATIC_INLINE void _DWT_Init(void) {
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCEVTENA_Msk | DWT_CTRL_CYCCNTENA_Msk;
+  __DSB();
+  __ISB();
+}
+
+
+void __attribute__((weak)) _delay_us(uint32_t us) {
+  _DWT_Init();
+  uint32_t const start = DWT->CYCCNT;
+  uint32_t const ticks = us * (SystemClocks.SystemCore / 1000000U);
+  while ((READ_REG(DWT->CYCCNT) - start) < ticks) { __asm volatile("nop"); }
+  DWT->CTRL &= ~(DWT_CTRL_CYCEVTENA_Msk | DWT_CTRL_CYCCNTENA_Msk);
+}
+
+
+
+
+void __attribute__((weak)) _delay_ms(uint32_t ms) {
+  uint32_t delay_threshold = SysTickCnt + ms;
+  while (delay_threshold >= SysTickCnt) {__asm volatile("nop");};
+}
+/********************************************************************************/
+/*                                 end of block                                 */
+/********************************************************************************/
+
+
+/**
+  * @brief  This function blink a LED.
+  * @param  port: a pointer to a GPIO port
+  * @param  pinSource: a number of pin in a port
+  * @retval None
+  */
+void LED_Blink(GPIO_TypeDef* port, uint16_t pinSource) {
+  (PIN_LEVEL(port, pinSource)) ? PIN_L(port, pinSource) : PIN_H(port, pinSource);
+}
