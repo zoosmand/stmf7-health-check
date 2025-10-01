@@ -35,8 +35,12 @@ int main(void) {
   while (1) {
     __NOP();
 
-    LED_Blink(LED_BLUE_Port, LED_BLUE_Pin);
-    _delay_ms(1000);
+    // LED_Blink(LED_BLUE_Port, LED_BLUE_Pin);
+    // _delay_ms(1000);
+    // printf("test\n");
+    // _delay_us(1000);
+
+    
   }
 }
 

@@ -133,6 +133,7 @@ void assert_failed(uint8_t *file, int line) {
 
 __STATIC_INLINE void _DWT_Init(void) {
   DWT->CYCCNT = 0;
+  DWT->LAR = 0xc5acce55;
   DWT->CTRL |= DWT_CTRL_CYCEVTENA_Msk | DWT_CTRL_CYCCNTENA_Msk;
   __DSB();
   __ISB();
