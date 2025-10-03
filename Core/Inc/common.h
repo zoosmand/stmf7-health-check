@@ -70,6 +70,9 @@ typedef struct {
 extern RCC_ClocksTypeDef SystemClocks;
 extern __IO uint32_t SysTickCnt;
 
+extern struct netif gnetif;
+
+
 
 /* Private defines -----------------------------------------------------------*/
 /*** NVIC ***/

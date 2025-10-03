@@ -28,8 +28,8 @@
 
 
 // /* --- MACMIIAR bit helpers (F7/F4 style) --- */
-// #define MIIAR_MB         (1u << 0)   /* Busy */
-// #define MIIAR_MW         (1u << 1)   /* 1=Write, 0=Read */
+// // #define MIIAR_MB         (1u << 0)   /* Busy */
+// // #define MIIAR_MW         (1u << 1)   /* 1=Write, 0=Read */
 // #define MIIAR_CR_SHIFT   2           /* Clock range */
 // #define MIIAR_MR_SHIFT   6           /* PHY reg */
 // #define MIIAR_PA_SHIFT   11          /* PHY addr */
@@ -40,11 +40,15 @@
 
 
 
-#define MIIAR_MB      (1u << 0)
-#define MIIAR_MW      (1u << 1)
-#define MIIAR_CR(x)   ((x) & (7u << 2))
-#define MIIAR_MR(r)   ((uint32_t)(r) << 6)
-#define MIIAR_PA(p)   ((uint32_t)(p) << 11)
+// #define MIIAR_MB_Pos  0
+// #define MIIAR_MB      (1 << MIIAR_MB_Pos)
+
+// #define MIIAR_MW_Pos  1
+// #define MIIAR_MW      (1 << MIIAR_MW_Pos)
+
+// #define MIIAR_CR(x)   ((x) & (7u << 2))
+// #define MIIAR_MR(r)   ((uint32_t)(r) << 6)
+// #define MIIAR_PA(p)   ((uint32_t)(p) << 11)
 
 
 #define DCACHE_LINE 32u
@@ -103,7 +107,7 @@ typedef enum { PHY_DUP_HALF, PHY_DUP_FULL } phy_duplex_t;
 
 
 /* Exported functions prototypes ---------------------------------------------*/
-int ETH_Init_RMII(uint8_t, const uint8_t[6]);
+int Init_ETH_RMII(uint8_t, const uint8_t[6]);
 
 
 #ifdef __cplusplus

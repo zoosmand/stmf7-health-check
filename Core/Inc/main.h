@@ -33,6 +33,19 @@ extern "C" {
 #include "common.h"
 #include "init_ll.h"
 #include "ethernet_ll.h"
+#include "lan8742.h"
+
+#include "lwip/opt.h"
+#include "lwip/mem.h"
+#include "lwip/memp.h"
+#include "netif/etharp.h"
+#include "lwip/dhcp.h"
+#include "lwip/netif.h"
+#include "lwip/timeouts.h"
+
+#include "lwip/err.h"
+#include "lwip/netif.h"
+
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -48,7 +61,6 @@ extern "C" {
 /* Private defines -----------------------------------------------------------*/
 
 /* Public defines ------------------------------------------------------------*/
-
 
 
 #ifdef __cplusplus

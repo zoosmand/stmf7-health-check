@@ -60,8 +60,6 @@ void SystemInit(void) {
   /* PWR */
   PREG_SET(RCC->APB1ENR, RCC_APB1ENR_PWREN_Pos);
   while (!(PREG_CHECK(RCC->APB1ENR, RCC_APB1ENR_PWREN_Pos)));
-  PREG_SET(RCC->APB1ENR, RCC_APB2ENR_SYSCFGEN_Pos);
-  while (!(PREG_CHECK(RCC->APB1ENR, RCC_APB2ENR_SYSCFGEN_Pos)));
 
   /* FLASH_IRQn interrupt configuration */
   NVIC_SetPriority(FLASH_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
@@ -215,6 +213,9 @@ void SystemInit(void) {
     | RCC_AHB1ENR_GPIODEN
     | RCC_AHB1ENR_GPIOFEN
     | RCC_AHB1ENR_GPIOGEN
+    | RCC_AHB1ENR_ETHMACEN
+    | RCC_AHB1ENR_ETHMACTXEN
+    | RCC_AHB1ENR_ETHMACRXEN
   ));
 
   /* APB2 */

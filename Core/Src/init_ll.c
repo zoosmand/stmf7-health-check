@@ -15,7 +15,7 @@
 #include "init_ll.h"
 
 /* Global variables ----------------------------------------------------------*/
-
+const uint8_t eth_mac_addr[6] = {0x00, 0x80, 0xaa, 0xbb, 0xcc, 0xdd};
 
 
 
@@ -143,6 +143,16 @@ int Init_ETH_LL(void) {
   /* Alternate function */
   MODIFY_REG(ETH_TXD0_Port->AFR[1], (0xf << ((ETH_TXD0_Pin_Pos -8) * 4)), (GPIO_AF_11 << ((ETH_TXD0_Pin_Pos -8) * 4)));
 
+
+
+  
+  
+  for (uint8_t i = 0; i < sizeof(eth_mac_addr); i++) {
+    gnetif.hwaddr[i] = eth_mac_addr[i];
+  }
+
+
+  if (Init_ETH_RMII(LAN8742_MAX_DEV_ADDR, eth_mac_addr)) return (1);
 
   return (0);
 }
