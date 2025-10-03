@@ -53,6 +53,12 @@
 
 #define DCACHE_LINE 32u
 
+#define PBUF_LINK_ENCAPSULATION_HLEN    0
+#define ETH_PAD_SIZE                    0
+#define PBUF_LINK_HLEN                  (14 + ETH_PAD_SIZE)
+#define LWIP_PBUF_REF_T                 u8_t
+#define LWIP_PBUF_CUSTOM_DATA
+
 
 
 typedef struct {

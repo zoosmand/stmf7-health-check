@@ -34,8 +34,12 @@ extern "C" {
 #include "init_ll.h"
 #include "ethernet_ll.h"
 #include "lan8742.h"
+#include "lwipopts.h"
+#include "cmsis_os.h"
 
+#include "lwip/arch.h"
 #include "lwip/opt.h"
+#include "lwip/pbuf.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"
 #include "netif/etharp.h"

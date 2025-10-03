@@ -46,6 +46,7 @@ $(wildcard Ext/Src/*.c) \
 $(wildcard lwip/system/OS/*.c) \
 $(wildcard lwip/core/*.c) \
 $(wildcard lwip/core/ip4/*.c) \
+$(wildcard lwip/core/ip6/*.c) \
 $(wildcard lwip/api/*.c) \
 $(wildcard lwip/netif/*.c) \
 $(wildcard lwip/netif/ppp/*.c) \
