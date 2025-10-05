@@ -22,15 +22,15 @@
 
 
 
-int Init_HeartBeat(GPIO_TypeDef* port, uint16_t pin) {
+int Init_HeartBeat(GPIO_TypeDef* port, uint16_t pinPos) {
   /* Mode */
-  MODIFY_REG(HEAR_BEAT_PORT->MODER, HEAR_BEAT_PIN_Mask, (_MODE_OUT << HEAR_BEAT_PIN_Pos * 2));
-  /* Speed */
-  // MODIFY_REG(LED_BLUE_Port->OSPEEDR, LED_BLUE_Pin_Mask, (_SPEED_L << LED_BLUE_Pin_Pos * 2));
+  MODIFY_REG(port->MODER, (0x3 << (pinPos * 2)), (_MODE_OUT << (pinPos * 2)));
+  // /* Speed */
+  // MODIFY_REG(port->OSPEEDR, (0x3 << (pinPos * 2)), (_SPEED_L << pinPos * 2));
   // /* Output type */
-  // MODIFY_REG(LED_BLUE_Port->OTYPER, (_OTYPE_PP << LED_BLUE_Pin_Mask), (_OTYPE_PP << LED_BLUE_Pin_Pos));
+  // MODIFY_REG(port->OTYPER, (_OTYPE_PP << (0x3 << (pinPos * 2))), (_OTYPE_PP << pinPos));
   // /* Push mode */
-//   MODIFY_REG(HEAR_BEAT_PORT->PUPDR, HEAR_BEAT_PIN_Mask, (_PUPD_PD << HEAR_BEAT_PIN_Pos * 2));
+  // MODIFY_REG(port->PUPDR, (0x3 << (pinPos * 2)), (_PUPD_NO << HEAR_BEAT_PIN_Pos * 2));
 
   return (0);
 }

@@ -25,7 +25,6 @@
 #define HEAR_BEAT_PORT        GPIOB
 #define HEAR_BEAT_PIN         GPIO_PIN_14
 #define HEAR_BEAT_PIN_Pos     GPIO_PIN_14_Pos
-#define HEAR_BEAT_PIN_Mask    GPIO_PIN_14_Mask
 
 
 /* Exported functions prototypes ---------------------------------------------*/
