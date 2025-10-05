@@ -152,6 +152,13 @@ struct __FILE {
 #define IWDG_KEY_WR_ACCESS_ENABLE   0x00005555               /*!< IWDG KR Write Access Enable  */
 
 
+/* Peripherals readiness flags */
+#define _PR_HEART_BEAT_LED    0
+#define _PR_USART             1
+#define _PR_ONEWIRE_BUS       2
+
+
+
 /* Exported functions prototypes ---------------------------------------------*/
 void __attribute__((weak)) Error_Handler(void);
 int __attribute__((weak)) putc_dspl(char);

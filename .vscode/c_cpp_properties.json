@@ -11,7 +11,11 @@
         "${env:VSARM}/arm-gcc/arm-none-eabi/include",
         "${workspaceFolder}/Drivers/CMSIS/Include/",
         "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F7xx/Include",
-        "${workspaceFolder}/Core/Inc"
+        "${workspaceFolder}/Core/Inc",
+        "${workspaceRoot}/Periph/Inc",
+        "${workspaceRoot}/Srv/Inc",
+        "${workspaceRoot}/FreeRTOS-Kernel/include",
+        "${workspaceRoot}/FreeRTOS-Kernel/portable/GCC/ARM_CM7"
       ],
       "defines": [
         "DEBUG",

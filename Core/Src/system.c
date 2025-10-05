@@ -44,15 +44,15 @@ void SystemInit(void) {
   /* Set Interrupt Group Priority */
   NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
 
-  /* Conficure SysTick */
-  SET_BIT(SysTick->CTRL, (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk));
-  SysTick->LOAD = 2160U - 1U;
-  SysTick->VAL = 0;
-  SET_BIT(SysTick->CTRL, SysTick_CTRL_ENABLE_Msk);
+  // /* Conficure SysTick */
+  // SET_BIT(SysTick->CTRL, (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk));
+  // SysTick->LOAD = 2160U - 1U;
+  // SysTick->VAL = 0;
+  // SET_BIT(SysTick->CTRL, SysTick_CTRL_ENABLE_Msk);
 
-  /* SysTick interrupt configuration */
-  NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
-  NVIC_EnableIRQ(SysTick_IRQn);
+  // /* SysTick interrupt configuration */
+  // NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+  // NVIC_EnableIRQ(SysTick_IRQn);
 
   /* SysCfg */
   PREG_SET(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN_Pos);
@@ -181,12 +181,12 @@ void SystemInit(void) {
 
   /*****************************************************************************************/
   /* IWDG */
-  IWDG->KR = IWDG_KEY_ENABLE;
-  IWDG->KR = IWDG_KEY_WR_ACCESS_ENABLE;
-  IWDG->PR =  IWDG_PR_PR & (IWDG_PR_PR_2 | IWDG_PR_PR_0); /*!< Divided by 128 */
-  IWDG->RLR = IWDG_RLR_RL & 624;                          /*<! ~2.5sec.  */
-  while (!(PREG_CHECK(IWDG->SR, IWDG_SR_PVU_Pos)));
-  IWDG->KR = IWDG_KEY_RELOAD;
+  // IWDG->KR = IWDG_KEY_ENABLE;
+  // IWDG->KR = IWDG_KEY_WR_ACCESS_ENABLE;
+  // IWDG->PR =  IWDG_PR_PR & (IWDG_PR_PR_2 | IWDG_PR_PR_0); /*!< Divided by 128 */
+  // IWDG->RLR = IWDG_RLR_RL & 624;                          /*<! ~2.5sec.  */
+  // while (!(PREG_CHECK(IWDG->SR, IWDG_SR_PVU_Pos)));
+  // IWDG->KR = IWDG_KEY_RELOAD;
 
   /*****************************************************************************************/
   /* Peripheral clock */

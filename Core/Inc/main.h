@@ -21,16 +21,26 @@ extern "C" {
 
 
 /* Includes ------------------------------------------------------------------*/
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+#include <timers.h>
+#include <semphr.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <time.h>
-//
+#include <unistd.h>
+
 #include "stm32f7xx.h"
 
 /* Private includes ----------------------------------------------------------*/
 #include "common.h"
 #include "stm32f7xx_it.h"
+
+#include "gpio.h"
+
+#include "heart_beat.h"
 
 /* Exported types ------------------------------------------------------------*/
 
