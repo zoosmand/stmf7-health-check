@@ -19,19 +19,19 @@ const uint8_t eth_mac_addr[6] = {0x00, 0x80, 0xaa, 0xbb, 0xcc, 0xdd};
 
 
 
-int Init_LED(void) {
-  /*** GPIO LED -  PB7 ***/
-  /* Mode */
-  MODIFY_REG(LED_RED_Port->MODER, LED_RED_Pin_Mask, (_MODE_OUT << LED_RED_Pin_Pos * 2));
-  /* Speed */
-  // MODIFY_REG(LED_BLUE_Port->OSPEEDR, LED_BLUE_Pin_Mask, (_SPEED_L << LED_BLUE_Pin_Pos * 2));
-  // /* Output type */
-  // MODIFY_REG(LED_BLUE_Port->OTYPER, (_OTYPE_PP << LED_BLUE_Pin_Mask), (_OTYPE_PP << LED_BLUE_Pin_Pos));
-  // /* Push mode */
-  // MODIFY_REG(LED_BLUE_Port->PUPDR, LED_BLUE_Pin_Mask, (_PUPD_NO << LED_BLUE_Pin_Pos * 2));
+// int Init_LED(void) {
+//   /*** GPIO LED -  PB7 ***/
+//   /* Mode */
+//   MODIFY_REG(LED_RED_Port->MODER, LED_RED_Pin_Mask, (_MODE_OUT << LED_RED_Pin_Pos * 2));
+//   /* Speed */
+//   // MODIFY_REG(LED_BLUE_Port->OSPEEDR, LED_BLUE_Pin_Mask, (_SPEED_L << LED_BLUE_Pin_Pos * 2));
+//   // /* Output type */
+//   // MODIFY_REG(LED_BLUE_Port->OTYPER, (_OTYPE_PP << LED_BLUE_Pin_Mask), (_OTYPE_PP << LED_BLUE_Pin_Pos));
+//   // /* Push mode */
+//   // MODIFY_REG(LED_BLUE_Port->PUPDR, LED_BLUE_Pin_Mask, (_PUPD_NO << LED_BLUE_Pin_Pos * 2));
 
-  return (0);
-}
+//   return (0);
+// }
 
 
 int Init_ETH_LL(void) {

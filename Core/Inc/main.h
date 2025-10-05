@@ -34,6 +34,7 @@ extern "C" {
 
 #include "stm32f7xx.h"
 #include "stm32f7xx_it.h"
+#include "cmsis_os2.h"
 
 /* Private includes ----------------------------------------------------------*/
 #include "common.h"
@@ -41,7 +42,7 @@ extern "C" {
 #include "ethernet_ll.h"
 #include "lan8742.h"
 #include "lwipopts.h"
-#include "cmsis_os.h"
+// #include "cmsis_os.h"
 
 #include "lwip/arch.h"
 #include "lwip/opt.h"

@@ -107,13 +107,13 @@ int Init_ETH_RMII(uint8_t phy_addr, const uint8_t mac[6]) {
 
   /* --- DMA operating mode: store & forward simplifies checksumming --- */
   /* RX/TX store & forward */
-  PREG_SET(ETH->DMAOMR, (
+  SET_BIT(ETH->DMAOMR, (
       ETH_DMAOMR_RSF
     | ETH_DMAOMR_TSF
   ));
 
   /* DMA bus mode: fixed burst, 32-beat PBL, AAB, 4xPBL when Rx */
-  PREG_SET(ETH->DMABMR, (
+  SET_BIT(ETH->DMABMR, (
       ETH_DMABMR_AAB
     | ETH_DMABMR_FB
     | ETH_DMABMR_RDP_32Beat

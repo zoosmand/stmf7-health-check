@@ -49,7 +49,7 @@ $(wildcard lwip/core/ip6/*.c) \
 $(wildcard lwip/api/*.c) \
 $(wildcard lwip/netif/*.c) \
 $(wildcard lwip/netif/ppp/*.c) \
-$(wildcard lwip/netif/ppp/polarssl/*.c)
+$(wildcard lwip/netif/ppp/polarssl/*.c) \
 $(wildcard Periph/Src/*.c) \
 $(wildcard Srv/Src/*.c) \
 $(wildcard FreeRTOS-Kernel/*.c) \
@@ -124,7 +124,10 @@ C_DEFS =  \
 -DINSTRUCTION_CACHE_ENABLE=1 \
 -DDATA_CACHE_ENABLE=1 \
 -DSTM32F767xx \
--DUSE_FULL_ASSERT
+-DUSE_FULL_ASSERT \
+-DLWIP_IPV4=1 \
+-DLWIP_ETHERNET=1 \
+-DLWIP_ARP=1
 
 
 # AS includes
