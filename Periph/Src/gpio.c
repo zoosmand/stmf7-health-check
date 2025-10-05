@@ -20,35 +20,17 @@
 /* Private function prototypes -----------------------------------------------*/
 
 
-int LED_Init(GPIO_TypeDef *port, uint16_t pin) {
-    uint32_t shift;
-    #define GPIO_MODE_OUTPUT_PP_2MHZ (_IOS_2 | _GPO_PP)
 
-    if (pin < 8) {
-        shift = pin * 4;
-        MODIFY_REG(port->CRL, (0xf << shift), (GPIO_MODE_OUTPUT_PP_2MHZ << shift));
-    } else {
-        shift = (pin - 8) * 4;
-        MODIFY_REG(port->CRH, (0xf << shift), (GPIO_MODE_OUTPUT_PP_2MHZ << shift));
-    }
 
-    return 0;
+int Init_HeartBeat(GPIO_TypeDef* port, uint16_t pin) {
+  /* Mode */
+  MODIFY_REG(HEAR_BEAT_PORT->MODER, HEAR_BEAT_PIN_Mask, (_MODE_OUT << HEAR_BEAT_PIN_Pos * 2));
+  /* Speed */
+  // MODIFY_REG(LED_BLUE_Port->OSPEEDR, LED_BLUE_Pin_Mask, (_SPEED_L << LED_BLUE_Pin_Pos * 2));
+  // /* Output type */
+  // MODIFY_REG(LED_BLUE_Port->OTYPER, (_OTYPE_PP << LED_BLUE_Pin_Mask), (_OTYPE_PP << LED_BLUE_Pin_Pos));
+  // /* Push mode */
+//   MODIFY_REG(HEAR_BEAT_PORT->PUPDR, HEAR_BEAT_PIN_Mask, (_PUPD_PD << HEAR_BEAT_PIN_Pos * 2));
+
+  return (0);
 }
-
-
-int OneWire_Init(GPIO_TypeDef *port, uint16_t pin) {
-    uint32_t shift;
-    #define GPIO_MODE_OUTPUT_OD_10MHZ (_IOS_10 | _GPO_OD)
-
-    if (pin < 8) {
-        shift = pin * 4;
-        MODIFY_REG(port->CRL, (0xf << shift), (GPIO_MODE_OUTPUT_OD_10MHZ << shift));
-    } else {
-        shift = (pin - 8) * 4;
-        MODIFY_REG(port->CRH, (0xf << shift), (GPIO_MODE_OUTPUT_OD_10MHZ << shift));
-    }
-    PIN_H(port, pin);
-
-    return 0;
-}
-

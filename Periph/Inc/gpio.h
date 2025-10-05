@@ -34,20 +34,10 @@
   * @param  pin:  pin number (0..15)
   * @retval (int) Status of operation (0 = success)
   */
-int LED_Init(GPIO_TypeDef*, uint16_t);
+int Init_HeartBeat(GPIO_TypeDef*, uint16_t);
 
 
-/**
-  * @brief  Initializes the corresponding OneWire bus pin on the board. 
-  *         The pin is configured as:
-  *           - output
-  *           - low speed (10 MHz)
-  *           - open-drain
-  * @param  port: pointer to the GPIO port instance
-  * @param  pin:  pin number (0..15)
-  * @retval (int) Status of operation (0 = success)
-  */
-int OneWire_Init(GPIO_TypeDef*, uint16_t);
+
 
 
 #ifdef __cplusplus

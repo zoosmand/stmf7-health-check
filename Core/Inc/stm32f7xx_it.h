@@ -33,10 +33,10 @@ void HardFault_Handler(void);
 void MemManage_Handler(void);
 void BusFault_Handler(void);
 void UsageFault_Handler(void);
-void SVC_Handler(void);
+void __attribute__((weak)) SVC_Handler(void);
 void DebugMon_Handler(void);
-void PendSV_Handler(void);
-void SysTick_Handler(void);
+void __attribute__((weak)) PendSV_Handler(void);
+void __attribute__((weak)) SysTick_Handler(void);
 void RCC_IRQHandler(void);
 
 void USART3_IRQHandler(void);

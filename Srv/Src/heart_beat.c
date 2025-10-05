@@ -28,6 +28,8 @@ static void heartBeatTask(void* parameters);
   * @param  delay:  delay value 
   * @retval none
   */
+
+
 static void heartBeat_Blink(GPIO_TypeDef*, uint16_t, void (*)(TickType_t), TickType_t); 
 
 
@@ -58,7 +60,7 @@ static void heartBeatTask(void* parameters) {
   (void) parameters;
 
   while(1) {
-      heartBeat_Blink(GPIOC, GPIO_PIN_13, vTaskDelay, 1500);
+      heartBeat_Blink(HEAR_BEAT_PORT, HEAR_BEAT_PIN, vTaskDelay, 1500);
   }
 }
 
@@ -68,9 +70,6 @@ static void heartBeatTask(void* parameters) {
 static void heartBeat_Blink(GPIO_TypeDef* port, uint16_t pin, void (*callbackDelay)(TickType_t), TickType_t delay) {
   TickType_t fraction = delay/10;
 
-  PIN_L(port, pin);
-  callbackDelay(fraction);
-  
   PIN_H(port, pin);
   callbackDelay(fraction);
   
@@ -78,7 +77,9 @@ static void heartBeat_Blink(GPIO_TypeDef* port, uint16_t pin, void (*callbackDel
   callbackDelay(fraction);
   
   PIN_H(port, pin);
+  callbackDelay(fraction);
+  
+  PIN_L(port, pin);
   callbackDelay(delay - fraction);
 }
-
 

@@ -123,12 +123,13 @@ AS_INCLUDES =
 # C includes
 C_INCLUDES =  \
 -ICore/Inc \
--IExt/Inc \
+-IPeriph/Inc \
+-ISrv/Inc \
 -IDrivers/CMSIS/Device/ST/STM32F7xx/Include \
 -IDrivers/CMSIS/Include \
 -IDrivers/CMSIS/Include \
 -IFreeRTOS-Kernel/include \
--IFreeRTOS-Kernel/portable/GCC/ARM_CM3
+-IFreeRTOS-Kernel/portable/GCC/ARM_CM7
 
 
 # compile gcc flags

@@ -29,7 +29,7 @@ __IO uint32_t _PREG_ = 0;
 int main(void) {
 
   /* Initialization of necessary peripherals */
-  if (!LED_Init(HEAR_BEAT_PORT, HEAR_BEAT_PIN)) FLAG_SET(_PREG_, _PR_HEART_BEAT_LED);
+  if (!Init_HeartBeat(HEAR_BEAT_PORT, HEAR_BEAT_PIN)) FLAG_SET(_PREG_, _PR_HEART_BEAT_LED);
 
 
   /* Run the Heartbeat Service */
