@@ -50,6 +50,9 @@
 #define LWIP_IPV4 1
 #define LWIP_IPV6 0
 
+#define LWIP_TIMERS 1
+
+
 /* LwIP Stack Parameters (modified compared to initialization value in opt.h) -*/
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- Value in opt.h for LWIP_DHCP: 0 -----*/

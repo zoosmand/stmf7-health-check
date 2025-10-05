@@ -44,6 +44,7 @@ extern "C" {
 #include "lwipopts.h"
 // #include "cmsis_os.h"
 
+#include "lwip/timeouts.h"
 #include "lwip/arch.h"
 #include "lwip/opt.h"
 #include "lwip/pbuf.h"
@@ -52,7 +53,6 @@ extern "C" {
 #include "netif/etharp.h"
 #include "lwip/dhcp.h"
 #include "lwip/netif.h"
-#include "lwip/timeouts.h"
 
 #include "lwip/err.h"
 #include "lwip/netif.h"
