@@ -14,6 +14,7 @@
 ######################################
 TARGET = stmf7-health-check
 
+include ./lwip/Filelists.mk
 
 ######################################
 # building variables
@@ -41,11 +42,20 @@ BUILD_DIR = build
 # C sources
 C_SOURCES =  \
 $(wildcard Core/Src/*.c) \
+$(wildcard lwip/system/OS/*.c) \
+$(wildcard lwip/core/*.c) \
+$(wildcard lwip/core/ip4/*.c) \
+$(wildcard lwip/core/ip6/*.c) \
+$(wildcard lwip/api/*.c) \
+$(wildcard lwip/netif/*.c) \
+$(wildcard lwip/netif/ppp/*.c) \
+$(wildcard lwip/netif/ppp/polarssl/*.c)
 $(wildcard Periph/Src/*.c) \
 $(wildcard Srv/Src/*.c) \
 $(wildcard FreeRTOS-Kernel/*.c) \
 $(wildcard FreeRTOS-Kernel/portable/GCC/ARM_CM7/*.c) \
 FreeRTOS-Kernel/portable/MemMang/heap_4.c
+
 
 # ASM sources
 ASM_SOURCES =  \
@@ -129,7 +139,21 @@ C_INCLUDES =  \
 -IDrivers/CMSIS/Include \
 -IDrivers/CMSIS/Include \
 -IFreeRTOS-Kernel/include \
--IFreeRTOS-Kernel/portable/GCC/ARM_CM7
+-IFreeRTOS-Kernel/portable/GCC/ARM_CM7 \
+-Ilwip/system \
+-Ilwip/system/arch \
+-Ilwip/include \
+-Ilwip/include/lwip \
+-Ilwip/include/lwip/apps \
+-Ilwip/include/lwip/priv \
+-Ilwip/include/lwip/prot \
+-Ilwip/include/netif \
+-Ilwip/include/compat/stdc \
+-Ilwip/include/compat/posix \
+-Ilwip/include/compat/posix/arpa \
+-Ilwip/include/compat/posix/net \
+-Ilwip/include/compat/posix/sys
+
 
 
 # compile gcc flags

@@ -61,7 +61,9 @@ _Min_Stack_Size = 0x1000; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 512K
+RAM (xrw)       : ORIGIN = 0x20000000, LENGTH = 432K
+ETH (xrw)       : ORIGIN = 0x2006c000, LENGTH = 64K
+CRON (xrw)      : ORIGIN = 0x2007c000, LENGTH = 16K
 FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 2048K
 }
 
@@ -144,6 +146,32 @@ SECTIONS
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
   } >RAM AT> FLASH
+
+
+  /* ETH region specification */
+  _sieth = LOADADDR(.eth);
+  .eth (NOLOAD) :
+  {
+    _seth = .;
+    . = ALIGN(32);
+    KEEP(*(.eth))
+    KEEP(*(.eth*))
+    . = ALIGN(32);
+    _eeth = .;
+  } >ETH
+
+
+  /* CRON region specification */
+  _sicron = LOADADDR(.cron);
+  .cron (NOLOAD) :
+  {
+    _scron = .;
+    . = ALIGN(4);
+    KEEP(*(.cron))
+    KEEP(*(.cron*))
+    . = ALIGN(4);
+    _ecron = .;
+  } >CRON
 
   
   /* Uninitialized data section */

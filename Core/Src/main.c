@@ -29,7 +29,8 @@ __IO uint32_t _PREG_ = 0;
 int main(void) {
 
   /* Initialization of necessary peripherals */
-  if (!Init_HeartBeat(HEAR_BEAT_PORT, HEAR_BEAT_PIN_Pos)) FLAG_SET(_PREG_, _PR_HEART_BEAT_LED);
+  if (!Init_HeartBeat(HEAR_BEAT_PORT, HEAR_BEAT_PIN_Pos)) FLAG_SET(_PREG_, HEART_BEAT_LED_READY_Flag);
+   if (Init_ETH_LL()) FLAG_SET(_PREG_, ETH_READY_Flag);
 
 
   /* Run the Heartbeat Service */
@@ -42,6 +43,13 @@ int main(void) {
 
   while (1) {
     __NOP();
+
+    // LED_Blink(LED_RED_Port, LED_RED_Pin);
+    // _delay_ms(1000);
+    // printf("test\n");
+    // _delay_us(1000);
+
+
   }
 }
 
