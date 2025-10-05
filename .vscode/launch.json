@@ -16,6 +16,7 @@
       "v1": false,
       "svdFile": "${workspaceRoot}/STM32F767.svd",
       "armToolchainPath": "${env:VSARM}/arm-gcc/bin",
+      "showDevDebugOutput": "raw",
       "configFiles": [
         "${env:SHARE}/openocd/scripts/board/st_nucleo_f7.cfg"
       ],
