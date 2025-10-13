@@ -22,7 +22,7 @@
 #ifndef __LWIPOPTS__H__
 #define __LWIPOPTS__H__
 
-#include "main.h"
+// #include "main.h"
 
 /*-----------------------------------------------------------------------------*/
 /* Current version of LwIP supported by CubeMx: 2.1.2 -*/
@@ -40,13 +40,13 @@
 /* STM32CubeMX Specific Parameters (not defined in opt.h) ---------------------*/
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- WITH_RTOS disabled (Since FREERTOS is not set) -----*/
-#define WITH_RTOS 1
+#define WITH_RTOS 0
 /*----- CHECKSUM_BY_HARDWARE enabled -----*/
 #define CHECKSUM_BY_HARDWARE 1
 /*-----------------------------------------------------------------------------*/
+// #define LWIP_NUM_NETIF_CLIENT_DATA 0
 
-
-
+#define LWIP_ARP 1
 #define LWIP_IPV4 1
 #define LWIP_IPV6 0
 
@@ -111,7 +111,6 @@
 #define CHECKSUM_CHECK_ICMP6 0
 /*-----------------------------------------------------------------------------*/
 /* USER CODE BEGIN 1 */
-
 /* USER CODE END 1 */
 
 #ifdef __cplusplus

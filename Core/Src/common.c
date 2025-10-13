@@ -86,8 +86,8 @@ __STATIC_INLINE void _putc(uint8_t ch) {
  #endif
 
  #ifdef USART_OUT
-    while (!(PREG_CHECK(USART_OUT->SR, USART_SR_TXE_Pos)));
-    USART_OUT->DR = ch;
+    while (!(PREG_CHECK(USART_OUT->RQR, USART_RQR_TXFRQ_Pos))) {__asm volatile("nop");};
+    USART3->TDR = ch;
   #endif
 }
 
