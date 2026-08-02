@@ -84,21 +84,21 @@ void Board_InitDiagnosticUart(void) {
 
 void Board_PrintConfiguration(void) {
   const uint8_t* macAddress = board_GetEthernetMacAddress();
-  printf("\nSTM32F767 health checker startup\n");
-  printf("Board: ST NUCLEO-F767ZI (MB1137)\n");
-  printf("MCU: STM32F767ZIT6, Cortex-M7\n");
-  printf(
+  Common_Printf("\nSTM32F767 health checker startup\n");
+  Common_Printf("Board: ST NUCLEO-F767ZI (MB1137)\n");
+  Common_Printf("MCU: STM32F767ZIT6, Cortex-M7\n");
+  Common_Printf(
     "Clocks: core=%lu MHz, APB1=%lu MHz, APB2=%lu MHz\n",
     (unsigned long)(systemClocks.systemCoreHz / 1000000U),
     (unsigned long)(systemClocks.pclk1Hz / 1000000U),
     (unsigned long)(systemClocks.pclk2Hz / 1000000U)
   );
-  printf(
+  Common_Printf(
     "Console: ST-LINK VCP, USART3 PD8/PD9, %lu 8N1\n",
     (unsigned long)BOARD_DIAGNOSTIC_BAUD_RATE
   );
-  printf("Ethernet: LAN8742A, RMII, PHY address %u\n", ETHERNET_PHY_ADDRESS);
-  printf(
+  Common_Printf("Ethernet: LAN8742A, RMII, PHY address %u\n", ETHERNET_PHY_ADDRESS);
+  Common_Printf(
     "Ethernet MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
     (unsigned)macAddress[0],
     (unsigned)macAddress[1],
@@ -107,7 +107,7 @@ void Board_PrintConfiguration(void) {
     (unsigned)macAddress[4],
     (unsigned)macAddress[5]
   );
-  printf("External flash: W25Q64, SPI1 PB3/PB4/PB5, NSS PA4\n");
+  Common_Printf("External flash: W25Q64, SPI1 PB3/PB4/PB5, NSS PA4\n");
 }
 
 Ethernet_StatusTypeDef Board_InitEthernet(void) {

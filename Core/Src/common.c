@@ -20,10 +20,38 @@
 
 #include "common.h"
 
+#include "FreeRTOS.h"
+#include "semphr.h"
+
 #include <stddef.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 static void common_WriteCharacter(uint8_t character);
+static StaticSemaphore_t outputMutexControlBlock;
+static SemaphoreHandle_t outputMutex;
+
+ErrorStatus Common_InitOutput(void) {
+  if (outputMutex == NULL)
+    outputMutex = xSemaphoreCreateMutexStatic(&outputMutexControlBlock);
+  return outputMutex != NULL ? SUCCESS : ERROR;
+}
+
+int Common_Printf(const char* format, ...) {
+  if (format == NULL)
+    return -1;
+  if ((outputMutex != NULL)
+      && (xSemaphoreTake(outputMutex, portMAX_DELAY) != pdTRUE)) {
+    return -1;
+  }
+  va_list arguments;
+  va_start(arguments, format);
+  int result = vprintf(format, arguments);
+  va_end(arguments);
+  if (outputMutex != NULL)
+    (void)xSemaphoreGive(outputMutex);
+  return result;
+}
 
 void System_ErrorHandler(void) {
   __disable_irq();
@@ -59,7 +87,7 @@ int _write(int file, char* data, int length) {
 
 #ifdef USE_FULL_ASSERT
 void assert_failed(uint8_t* file, uint32_t line) {
-  printf("Assertion failed: %s:%lu\n", file, (unsigned long)line);
+  Common_Printf("Assertion failed: %s:%lu\n", file, (unsigned long)line);
   System_ErrorHandler();
 }
 #endif

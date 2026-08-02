@@ -1,10 +1,10 @@
 /**
   ******************************************************************************
-  * @file           : main.h
-  * @brief          : Application entry-point dependencies.
+  * @file           : health_check_service.h
+  * @brief          : Periodic HTTPS resource health-check service.
   * @project        : STM32F767 Health Check
   * @platform       : STMicroelectronics STM32F767ZIT6
-  * @created        : 29.09.2025
+  * @created        : 30.07.2026
   ******************************************************************************
   * @attention
   *
@@ -18,25 +18,11 @@
   ******************************************************************************
   */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef HEALTH_CHECK_SERVICE_H
+#define HEALTH_CHECK_SERVICE_H
 
-#include "FreeRTOS.h"
-#include "task.h"
+#include "main.h"
 
-#include "common.h"
-#include "gpio.h"
-#include "heart_beat.h"
-#include "health_check_service.h"
-#include "health_check_types.h"
-#include "health_check_config.h"
-#include "health_check_log.h"
-#include "init_ll.h"
-#include "network_service.h"
-#include "spi.h"
-#include "time_service.h"
-#include "tls_platform.h"
-#include "tls_trust_store.h"
-#include "w25q64.h"
+ErrorStatus HealthCheckService_Init(void);
 
-#endif /* MAIN_H */
+#endif /* HEALTH_CHECK_SERVICE_H */

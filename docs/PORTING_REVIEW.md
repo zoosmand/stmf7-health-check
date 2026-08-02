@@ -9,7 +9,8 @@ The repository now provides a cleanly building hardware and FreeRTOS baseline.
 Its project-owned startup, GPIO, heartbeat, Ethernet setup, and lwIP OS adapter
 have consistent interfaces and documented failure behavior. The later network
 baseline adds the lwIP frame adapter, link monitoring, DHCP, and static
-fallback. Application protocols remain future work.
+fallback. The HTTPS resource checker, trusted UTC prerequisite, and persistent
+configuration/logging have since been ported on top of this baseline.
 
 ## Corrected findings
 
@@ -38,14 +39,16 @@ fallback. Application protocols remain future work.
 
 ## Remaining port work
 
-- Port RTC/NTP, watchdog, sensors, and diagnostic services.
-- Port Mbed TLS, HTTPS checks, persistent configuration/logging, the management
-  API, and alarms in individually testable stages.
+- Port retained on-board RTC state, watchdog, sensors, and diagnostic services.
+- Port alarms in an individually testable stage.
 
 ## Verification
 
 - `make clean && make -j4` completes without compiler or linker warnings.
-- Resulting baseline size: 9,708 bytes text, 124 bytes initialized data, and
-  32,756 bytes BSS, including the reserved Ethernet DMA buffers.
+- The original baseline size was 9,708 bytes text, 124 bytes initialized data,
+  and 32,756 bytes BSS, including the reserved Ethernet DMA buffers.
+- With networking, Mbed TLS 3.6.7, SNTP, persistent stores, the HTTPS checker,
+  and management API enabled, the verified size is 325,020 bytes text, 168
+  bytes initialized data, and 220,688 bytes BSS.
 - Host-side Python, shell, Postman JSON, and whitespace checks pass.
 - Target-device behavior still requires maintainer testing.

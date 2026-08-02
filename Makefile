@@ -25,6 +25,13 @@ OUTPUT ?= 1
 # Build path
 BUILD_DIR = build
 
+MBEDTLS_DIR = Middlewares/Third_Party/MbedTLS
+MBEDTLS_SOURCES = $(filter-out \
+$(MBEDTLS_DIR)/library/psa_crypto_storage.c \
+$(MBEDTLS_DIR)/library/psa_its_file.c \
+$(MBEDTLS_DIR)/library/timing.c, \
+$(wildcard $(MBEDTLS_DIR)/library/*.c))
+
 ######################################
 # source
 ######################################
@@ -42,16 +49,29 @@ Periph/Src/gpio.c \
 Periph/Src/spi.c \
 Periph/Src/w25q64.c \
 Srv/Src/heart_beat.c \
+Srv/Src/api_service.c \
+Srv/Src/auth_service.c \
+Srv/Src/health_check_config.c \
+Srv/Src/health_check_log.c \
+Srv/Src/health_check_service.c \
 Srv/Src/network_service.c \
+Srv/Src/time_service.c \
+Srv/Src/user_store.c \
+TLS/Src/tls_platform.c \
+TLS/Src/tls_server_credentials.c \
+TLS/Src/tls_transport.c \
+TLS/Src/tls_trust_store.c \
 lwip/system/OS/sys_arch.c \
 $(wildcard lwip/core/*.c) \
 $(wildcard lwip/core/ipv4/*.c) \
 $(wildcard lwip/api/*.c) \
 lwip/netif/ethernet.c \
+lwip/apps/sntp/sntp.c \
 FreeRTOS-Kernel/list.c \
 FreeRTOS-Kernel/queue.c \
 FreeRTOS-Kernel/tasks.c \
-FreeRTOS-Kernel/portable/GCC/ARM_CM7/port.c
+FreeRTOS-Kernel/portable/GCC/ARM_CM7/port.c \
+$(MBEDTLS_SOURCES)
 
 
 # ASM sources
@@ -128,7 +148,8 @@ C_DEFS =  \
 -DLWIP_TIMERS=1 \
 -DLWIP_NETIF_LINK_CALLBACK=1 \
 -DLWIP_ACD=1 \
--DLWIP_DHCP=1 
+-DLWIP_DHCP=1 \
+-DMBEDTLS_CONFIG_FILE='<health_checker_mbedtls_config.h>'
 
 # AS includes
 AS_INCLUDES = 
@@ -138,6 +159,9 @@ C_INCLUDES =  \
 -ICore/Inc \
 -IPeriph/Inc \
 -ISrv/Inc \
+-ITLS/Inc \
+-ITLS/Private \
+-IMiddlewares/Third_Party/MbedTLS/include \
 -IDrivers/CMSIS/Device/ST/STM32F7xx/Include \
 -IDrivers/CMSIS/Include \
 -IDrivers/CMSIS/Include \
