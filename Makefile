@@ -38,6 +38,8 @@ Core/Src/stm32f7xx_it.c \
 Core/Src/syscalls.c \
 Core/Src/system.c \
 Periph/Src/gpio.c \
+Periph/Src/spi.c \
+Periph/Src/w25q64.c \
 Srv/Src/heart_beat.c \
 lwip/system/OS/sys_arch.c \
 $(wildcard lwip/core/*.c) \
