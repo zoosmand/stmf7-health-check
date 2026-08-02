@@ -21,7 +21,7 @@ the lwIP `netif` frame adapter and link-management service remain future work.
   100-Mbit full duplex.
 - Replaced the inverted Ethernet-ready result with a typed status returned by
   `Board_InitEthernet()` and reported by `main()`.
-- Reserved an MPU-aligned 32 KiB SRAM region at `0x20068000` for Ethernet DMA
+- Reserved an MPU-aligned 32 KiB SRAM region at `0x20078000` for Ethernet DMA
   descriptors and buffers, and configured it as non-cacheable before enabling
   the Cortex-M7 data cache.
 - Preserved an already valid LSE-backed backup domain instead of resetting RTC

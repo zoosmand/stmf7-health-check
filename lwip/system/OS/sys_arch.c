@@ -4,7 +4,7 @@
   * @brief          : Static FreeRTOS adaptation for the lwIP system API.
   * @project        : STM32F767 Health Check
   * @platform       : STMicroelectronics STM32F767ZIT6
-  * @created        : 29.07.2026
+  * @created        : 29.07.2025
   ******************************************************************************
   * @attention
   *
