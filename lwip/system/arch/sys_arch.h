@@ -1,72 +1,86 @@
-/*
- * Copyright (c) 2001-2003 Swedish Institute of Computer Science.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
- * SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
- * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
- * OF SUCH DAMAGE.
- *
- * This file is part of the lwIP TCP/IP stack.
- *
- * Author: Adam Dunkels <adam@sics.se>
- *
- */
-#ifndef __SYS_ARCH_H__
-#define __SYS_ARCH_H__
+/**
+  ******************************************************************************
+  * @file           : sys_arch.h
+  * @brief          : Static FreeRTOS types for the lwIP system API.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 29.07.2026
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2001-2003 Swedish Institute of Computer Science
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
 
-#include "lwip/opt.h"
+#ifndef LWIP_ARCH_SYS_ARCH_H
+#define LWIP_ARCH_SYS_ARCH_H
 
-#if (NO_SYS != 0)
-#error "NO_SYS need to be set to 0 to use threaded API"
-#endif
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+#include "task.h"
 
-#include "cmsis_os.h"
+#include "lwip/arch.h"
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
+#define SYS_ARCH_MBOX_CAPACITY 16U
 
-#if (osCMSIS < 0x20000U)
+/**
+  * @brief Statically allocated lwIP binary semaphore.
+  * @param handle (SemaphoreHandle_t) FreeRTOS semaphore handle.
+  * @param storage (StaticSemaphore_t) Semaphore control-block storage.
+  */
+typedef struct {
+  SemaphoreHandle_t handle;
+  StaticSemaphore_t storage;
+} sys_sem_t;
 
-#define SYS_MBOX_NULL (osMessageQId)0
-#define SYS_SEM_NULL  (osSemaphoreId)0
+/**
+  * @brief Statically allocated lwIP recursive mutex.
+  * @param handle (SemaphoreHandle_t) FreeRTOS mutex handle.
+  * @param storage (StaticSemaphore_t) Mutex control-block storage.
+  */
+typedef struct {
+  SemaphoreHandle_t handle;
+  StaticSemaphore_t storage;
+} sys_mutex_t;
 
-typedef osSemaphoreId sys_sem_t;
-typedef osSemaphoreId sys_mutex_t;
-typedef osMessageQId  sys_mbox_t;
-typedef osThreadId    sys_thread_t;
-#else
+/**
+  * @brief Statically allocated lwIP message mailbox.
+  * @param handle (QueueHandle_t) FreeRTOS queue handle.
+  * @param queue (StaticQueue_t) Queue control-block storage.
+  * @param messages (void*[]) Fixed queue item storage.
+  */
+typedef struct {
+  QueueHandle_t handle;
+  StaticQueue_t queue;
+  void* messages[SYS_ARCH_MBOX_CAPACITY];
+} sys_mbox_t;
 
-#define SYS_MBOX_NULL (osMessageQueueId_t)0
-#define SYS_SEM_NULL  (osSemaphoreId_t)0
+typedef TaskHandle_t sys_thread_t;
 
-typedef osSemaphoreId_t     sys_sem_t;
-typedef osSemaphoreId_t     sys_mutex_t;
-typedef osMessageQueueId_t  sys_mbox_t;
-typedef osThreadId_t        sys_thread_t;
-#endif
+#define SYS_SEM_NULL  ((sys_sem_t){0})
+#define SYS_MBOX_NULL ((sys_mbox_t){0})
 
-#ifdef  __cplusplus
-}
-#endif
+#define sys_sem_valid(semaphore) \
+  (((semaphore) != NULL) && ((semaphore)->handle != NULL))
+#define sys_sem_set_invalid(semaphore) ((semaphore)->handle = NULL)
 
-#endif /* __SYS_ARCH_H__ */
+#define sys_mutex_valid(mutex) \
+  (((mutex) != NULL) && ((mutex)->handle != NULL))
+#define sys_mutex_set_invalid(mutex) ((mutex)->handle = NULL)
 
+#define sys_mbox_valid(mailbox) \
+  (((mailbox) != NULL) && ((mailbox)->handle != NULL))
+#define sys_mbox_set_invalid(mailbox) ((mailbox)->handle = NULL)
+
+void sys_arch_msleep(u32_t delayMs);
+#define sys_msleep(delayMs) sys_arch_msleep(delayMs)
+
+#endif /* LWIP_ARCH_SYS_ARCH_H */

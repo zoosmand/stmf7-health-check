@@ -1,47 +1,33 @@
 /**
   ******************************************************************************
   * @file           : gpio.h
-  * @brief          : Header for gpio.c file.
-  *                   This file contains the common defines for the GPIO
-  *                   initialization functions.
+  * @brief          : Project-owned GPIO configuration helpers.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 05.10.2025
   ******************************************************************************
   * @attention
   *
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
- 
-  /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __GPIO_INIT_H
-#define __GPIO_INIT_H
 
-#ifdef __cplusplus
-  extern "C" {
-#endif 
+#ifndef GPIO_H
+#define GPIO_H
 
-/* Includes ------------------------------------------------------------------*/
-#include "main.h"
-
-
-/* Exported functions prototypes ---------------------------------------------*/
+#include "common.h"
 
 /**
-  * @brief  Initializes the corresponding LED pin on the board. 
-  *         The pin is configured as:
-  *           - output
-  *           - low speed (2 MHz)
-  *           - push-pull
-  * @param  port: pointer to the GPIO port instance
-  * @param  pin:  pin number (0..15)
-  * @retval (int) Status of operation (0 = success)
+  * @brief Configure one GPIO as a low-speed push-pull output.
+  * @param port (GPIO_TypeDef*) Non-null GPIO peripheral.
+  * @param pinPosition (uint32_t) Pin position from 0 through 15.
   */
-int Init_HeartBeat(GPIO_TypeDef*, uint16_t);
+void Gpio_InitOutput(GPIO_TypeDef* port, uint32_t pinPosition);
 
-
-
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __GPIO_INIT_H */
+#endif /* GPIO_H */

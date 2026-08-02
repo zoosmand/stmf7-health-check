@@ -1,44 +1,32 @@
 /**
   ******************************************************************************
   * @file           : heart_beat.h
-  * @brief          : Header for heart_beat.c file.
-  *                   This file contains the common defines for LED blinking 
-  *                   that represent the system health.
+  * @brief          : Heartbeat service interface.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 05.10.2025
   ******************************************************************************
   * @attention
   *
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
- 
-  /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __HEART_BEAT_H
-#define __HEART_BEAT_H
 
-#ifdef __cplusplus
-  extern "C" {
-#endif 
+#ifndef HEART_BEAT_H
+#define HEART_BEAT_H
 
-/* Includes ------------------------------------------------------------------*/
-#include "main.h"
-
-
-#define HEAR_BEAT_PORT        GPIOB
-#define HEAR_BEAT_PIN         GPIO_PIN_14
-#define HEAR_BEAT_PIN_Pos     GPIO_PIN_14_Pos
-
-
-/* Exported functions prototypes ---------------------------------------------*/
+#include "FreeRTOS.h"
 
 /**
-  * @brief  Heartbeat LED blinking service
-  * @param  none
-  * @retval none
- */
-void HeartBeatService(void);
+  * @brief Create the statically allocated heartbeat task.
+  * @retval (BaseType_t) pdPASS when the task was created, otherwise pdFAIL.
+  */
+BaseType_t HeartBeatService_Init(void);
 
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __HEART_BEAT_H */
+#endif /* HEART_BEAT_H */

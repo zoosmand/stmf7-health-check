@@ -1,36 +1,32 @@
 /**
   ******************************************************************************
-  * @file           : led.c
-  * @brief          : This file contains the common defines for the GPIO
-  *                   initialization functions. 
+  * @file           : gpio.c
+  * @brief          : Project-owned GPIO configuration helpers.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 05.10.2025
   ******************************************************************************
   * @attention
   *
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
- 
 
-  /* Includes ------------------------------------------------------------------*/
 #include "gpio.h"
 
-/* Global variables ---------------------------------------------------------*/
+void Gpio_InitOutput(GPIO_TypeDef* port, uint32_t pinPosition) {
+  uint32_t modeShift = pinPosition * 2U;
+  uint32_t modeMask = 0x3UL << modeShift;
+  uint32_t pinMask = 1UL << pinPosition;
 
-/* Private variables ---------------------------------------------------------*/
-
-/* Private function prototypes -----------------------------------------------*/
-
-
-
-
-int Init_HeartBeat(GPIO_TypeDef* port, uint16_t pinPos) {
-  /* Mode */
-  MODIFY_REG(port->MODER, (0x3 << (pinPos * 2)), (_MODE_OUT << (pinPos * 2)));
-  // /* Speed */
-  // MODIFY_REG(port->OSPEEDR, (0x3 << (pinPos * 2)), (_SPEED_L << pinPos * 2));
-  // /* Output type */
-  // MODIFY_REG(port->OTYPER, (_OTYPE_PP << (0x3 << (pinPos * 2))), (_OTYPE_PP << pinPos));
-  // /* Push mode */
-  // MODIFY_REG(port->PUPDR, (0x3 << (pinPos * 2)), (_PUPD_NO << HEAR_BEAT_PIN_Pos * 2));
-
-  return (0);
+  MODIFY_REG(port->MODER, modeMask, GPIO_MODE_OUTPUT << modeShift);
+  MODIFY_REG(port->OSPEEDR, modeMask, GPIO_SPEED_LOW << modeShift);
+  CLEAR_BIT(port->OTYPER, pinMask);
+  CLEAR_BIT(port->PUPDR, modeMask);
 }

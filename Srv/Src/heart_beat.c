@@ -1,85 +1,72 @@
 /**
   ******************************************************************************
   * @file           : heart_beat.c
-  *                   This file contains the LED blinking code that represent 
-  *                   the system health.
+  * @brief          : FreeRTOS heartbeat LED service.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 05.10.2025
   ******************************************************************************
   * @attention
   *
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
- 
 
-/* Includes ------------------------------------------------------------------*/
 #include "heart_beat.h"
 
-/* Global variables ----------------------------------------------------------*/
+#include "common.h"
+#include "task.h"
 
-/* Private variables ---------------------------------------------------------*/
+#define HEART_BEAT_PORT           GPIOB
+#define HEART_BEAT_PIN_MASK       (1UL << 14U)
+#define HEART_BEAT_PERIOD_MS      1500U
+#define HEART_BEAT_PULSE_MS       150U
+#define HEART_BEAT_TASK_PRIORITY  (tskIDLE_PRIORITY + 1U)
+#define HEART_BEAT_STACK_WORDS    configMINIMAL_STACK_SIZE
 
-/* Private function prototypes -----------------------------------------------*/
-static void heartBeatTask(void* parameters);
+static StaticTask_t heartBeatTaskControlBlock;
+static StackType_t heartBeatTaskStack[HEART_BEAT_STACK_WORDS];
+
+static void heartBeatService_Task(void* argument);
+
+BaseType_t HeartBeatService_Init(void) {
+  TaskHandle_t task = xTaskCreateStatic(
+    heartBeatService_Task,
+    "heartbeat",
+    HEART_BEAT_STACK_WORDS,
+    NULL,
+    HEART_BEAT_TASK_PRIORITY,
+    heartBeatTaskStack,
+    &heartBeatTaskControlBlock
+  );
+  return (task != NULL) ? pdPASS : pdFAIL;
+}
 
 /**
-  * @brief  Heartbeat LED blinking
-  * @param  port: pointer to the GPIO port instance
-  * @param  pin:  pin number (0..15)
-  * @param  callbackDelay:  pointer to delay function 
-  * @param  delay:  delay value 
-  * @retval none
+  * @brief Emit two short LED pulses once per heartbeat period.
+  * @param argument (void*) Unused task argument.
   */
+static void heartBeatService_Task(void* argument) {
+  (void)argument;
+  const TickType_t pulseTicks = pdMS_TO_TICKS(HEART_BEAT_PULSE_MS);
+  const TickType_t quietTicks = pdMS_TO_TICKS(
+    HEART_BEAT_PERIOD_MS - (3U * HEART_BEAT_PULSE_MS)
+  );
 
-
-static void heartBeat_Blink(GPIO_TypeDef*, uint16_t, void (*)(TickType_t), TickType_t); 
-
-
-
-
-/*******************************************************************************/
-
-void HeartBeatService(void) {
-
-  static StaticTask_t heartBeatTaskTCB;
-  static StackType_t heartBeatTaskStack[configMINIMAL_STACK_SIZE];
-
-  (void) xTaskCreateStatic(
-                            heartBeatTask,
-                            "Heart Beat",
-                            configMINIMAL_STACK_SIZE,
-                            NULL,
-                            configMAX_PRIORITIES - 1U,
-                            &(heartBeatTaskStack[0]),
-                            &(heartBeatTaskTCB)
-                          );
-}
-
-
-
-static void heartBeatTask(void* parameters) {
-  /* Unused parameters. */
-  (void) parameters;
-
-  while(1) {
-      heartBeat_Blink(HEAR_BEAT_PORT, HEAR_BEAT_PIN, vTaskDelay, 1500);
+  for (;;) {
+    GPIO_PIN_SET(HEART_BEAT_PORT, HEART_BEAT_PIN_MASK);
+    vTaskDelay(pulseTicks);
+    GPIO_PIN_RESET(HEART_BEAT_PORT, HEART_BEAT_PIN_MASK);
+    vTaskDelay(pulseTicks);
+    GPIO_PIN_SET(HEART_BEAT_PORT, HEART_BEAT_PIN_MASK);
+    vTaskDelay(pulseTicks);
+    GPIO_PIN_RESET(HEART_BEAT_PORT, HEART_BEAT_PIN_MASK);
+    vTaskDelay(quietTicks);
   }
 }
-
-
-
-
-static void heartBeat_Blink(GPIO_TypeDef* port, uint16_t pin, void (*callbackDelay)(TickType_t), TickType_t delay) {
-  TickType_t fraction = delay/10;
-
-  PIN_H(port, pin);
-  callbackDelay(fraction);
-  
-  PIN_L(port, pin);
-  callbackDelay(fraction);
-  
-  PIN_H(port, pin);
-  callbackDelay(fraction);
-  
-  PIN_L(port, pin);
-  callbackDelay(delay - fraction);
-}
-
