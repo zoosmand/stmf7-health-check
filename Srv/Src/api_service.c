@@ -128,6 +128,8 @@ static int apiService_ReadRequest(
   size_t used = 0U;
   char* headerEnd = NULL;
   size_t expected = 0U;
+  size_t requestLength = 0U;
+  uint8_t requestComplete = 0U;
   while (used < (capacity - 1U)) {
     int result = mbedtls_ssl_read(
       ssl, (uint8_t*)&buffer[used], capacity - used - 1U
@@ -145,20 +147,43 @@ static int apiService_ReadRequest(
         if (lengthHeader == NULL)
           lengthHeader = strstr(buffer, "\r\ncontent-length:");
         if (lengthHeader != NULL) {
-          expected = strtoul(lengthHeader + 17U, NULL, 10);
-          if (expected > API_SERVICE_BODY_SIZE) {
+          char* value = lengthHeader + 17U;
+          char* end = NULL;
+
+          while ((*value == ' ') || (*value == '\t'))
+            value++;
+          if ((*value < '0') || (*value > '9')) {
             *headerEnd = saved;
             return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
           }
+
+          errno = 0;
+          unsigned long parsed = strtoul(value, &end, 10);
+          while ((end != NULL) && ((*end == ' ') || (*end == '\t')))
+            end++;
+          if ((errno == ERANGE) || (end == value)
+              || ((end != NULL) && (*end != '\r') && (*end != '\0'))
+              || (parsed > API_SERVICE_BODY_SIZE)) {
+            *headerEnd = saved;
+            return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+          }
+          expected = (size_t)parsed;
         }
         *headerEnd = saved;
+
+        requestLength = (size_t)(headerEnd + 4U - buffer);
+        if ((requestLength >= capacity)
+            || (expected > (capacity - requestLength - 1U)))
+          return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
       }
     }
     if ((headerEnd != NULL)
-        && (used >= ((size_t)(headerEnd + 4U - buffer) + expected)))
+        && (used >= (requestLength + expected))) {
+      requestComplete = 1U;
       break;
+    }
   }
-  if (headerEnd == NULL)
+  if ((headerEnd == NULL) || (requestComplete == 0U))
     return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
   char saved = *headerEnd;
   *headerEnd = '\0';

@@ -55,6 +55,12 @@ static AuthService_SessionTypeDef sessions[AUTH_SERVICE_SESSION_COUNT];
 static StaticSemaphore_t sessionMutexControlBlock;
 static SemaphoreHandle_t sessionMutex;
 
+/* Equalizes password-verification cost when a username does not exist. */
+static const uint8_t authService_DummySalt[USER_STORE_SALT_SIZE] = {
+  0x8EU, 0xC5U, 0x31U, 0xA9U, 0x44U, 0x76U, 0xD2U, 0x0BU,
+  0xF3U, 0x18U, 0x65U, 0x9CU, 0x27U, 0xBAU, 0x50U, 0xDEU
+};
+
 static uint8_t authService_IsAdministrator(
   const AuthService_PrincipalTypeDef* principal
 ) {
@@ -228,19 +234,24 @@ AuthService_StatusTypeDef AuthService_Login(
     status = AuthService_VerifyMasterPassword(password, passwordLength);
   } else {
     UserStore_RecordTypeDef record;
-    if ((UserStore_Find(username, &record, NULL) != HEALTH_CHECK_STATUS_OK)
-        || (record.enabled == 0U)) {
-      return AUTH_SERVICE_STATUS_INVALID_PASSWORD;
-    }
+    HealthCheck_StatusTypeDef findStatus = UserStore_Find(
+      username, &record, NULL
+    );
+    uint8_t found = (findStatus == HEALTH_CHECK_STATUS_OK) ? 1U : 0U;
+    uint8_t enabled = ((found != 0U) && (record.enabled != 0U)) ? 1U : 0U;
+    const uint8_t* salt = (found != 0U)
+      ? record.salt : authService_DummySalt;
+    uint32_t iterations = (found != 0U)
+      ? record.iterations : AUTH_SERVICE_USER_ITERATIONS;
     uint8_t verifier[USER_STORE_VERIFIER_SIZE];
     status = authService_Derive(
       password,
       passwordLength,
-      record.salt,
-      record.iterations,
+      salt,
+      iterations,
       verifier
     );
-    if (status == AUTH_SERVICE_STATUS_OK) {
+    if ((status == AUTH_SERVICE_STATUS_OK) && (enabled != 0U)) {
       status = (mbedtls_ct_memcmp(
         verifier,
         record.verifier,
@@ -248,9 +259,13 @@ AuthService_StatusTypeDef AuthService_Login(
       ) == 0)
         ? AUTH_SERVICE_STATUS_OK
         : AUTH_SERVICE_STATUS_INVALID_PASSWORD;
+    } else if (status == AUTH_SERVICE_STATUS_OK) {
+      status = AUTH_SERVICE_STATUS_INVALID_PASSWORD;
     }
     mbedtls_platform_zeroize(verifier, sizeof(verifier));
-    role = (UserStore_RoleTypeDef)record.role;
+    if (enabled != 0U)
+      role = (UserStore_RoleTypeDef)record.role;
+    mbedtls_platform_zeroize(&record, sizeof(record));
   }
   if (status != AUTH_SERVICE_STATUS_OK)
     return status;
