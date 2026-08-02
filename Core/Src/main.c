@@ -28,6 +28,14 @@ int main(void) {
   Board_InitDiagnosticUart();
   Board_PrintConfiguration();
 
+  printf("Startup: initializing W25Q64 Flash...\n");
+  Spi1_Init();
+  W25Q64_StatusTypeDef flashStatus = W25Q64_Init();
+  if (flashStatus == W25Q64_STATUS_OK)
+    printf("Startup: W25Q64 Flash ready.\n");
+  else
+    printf("W25Q64 initialization failed: %u\n", (unsigned)flashStatus);
+
   printf("Startup: initializing heartbeat output...\n");
   Gpio_InitOutput(GPIOB, HEART_BEAT_PIN_POSITION);
   GPIO_PIN_RESET(GPIOB, 1UL << HEART_BEAT_PIN_POSITION);

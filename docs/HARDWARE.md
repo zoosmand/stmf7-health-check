@@ -23,6 +23,12 @@ PB3 and PB4 overlap full-JTAG signals on STM32F767. They remain available when
 the board uses the two-wire SWD debug interface, but firmware and debugger
 configuration must not enable full JTAG while SPI1 is in use.
 
+SPI1 operates as an 8-bit mode-0 master at 27 MHz with software-controlled
+chip select. Startup performs only a JEDEC identity read and expects
+`EF 40 17`; it does not erase or program Flash contents. The driver provides
+bounded blocking read, 4 KiB sector erase, and page-aware program operations.
+Access is serialized by a statically allocated FreeRTOS mutex.
+
 ## Diagnostic console
 
 The ST-LINK virtual COM port is connected to USART3 and is the standard

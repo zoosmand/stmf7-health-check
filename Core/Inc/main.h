@@ -28,5 +28,7 @@
 #include "gpio.h"
 #include "heart_beat.h"
 #include "init_ll.h"
+#include "spi.h"
+#include "w25q64.h"
 
 #endif /* MAIN_H */
