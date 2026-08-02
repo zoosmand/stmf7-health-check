@@ -53,6 +53,13 @@ int main(void) {
     System_ErrorHandler();
   printf("Startup: heartbeat service ready.\n");
 
+  if (ethernetStatus == ETHERNET_STATUS_OK) {
+    printf("Startup: creating network service...\n");
+    if (NetworkService_Init() != pdPASS)
+      System_ErrorHandler();
+    printf("Startup: network service ready.\n");
+  }
+
   printf("Startup: starting FreeRTOS scheduler.\n");
   vTaskStartScheduler();
   System_ErrorHandler();

@@ -24,17 +24,25 @@
 #include "lan8742.h"
 
 #include <stddef.h>
+#include <string.h>
 
 #define ETHERNET_RX_DESCRIPTOR_COUNT 8U
 #define ETHERNET_TX_DESCRIPTOR_COUNT 8U
 #define ETHERNET_BUFFER_SIZE         1536U
 #define ETHERNET_REGISTER_TIMEOUT    1000000U
-#define ETHERNET_PHY_TIMEOUT_MS      3000U
 
 #define ETHERNET_RX_OWN              (1UL << 31U)
 #define ETHERNET_RX_CHAINED          (1UL << 14U)
 #define ETHERNET_RX_BUFFER_MASK      0x1FFFUL
 #define ETHERNET_TX_CHAINED          (1UL << 20U)
+#define ETHERNET_TX_FIRST_SEGMENT    (1UL << 28U)
+#define ETHERNET_TX_LAST_SEGMENT     (1UL << 29U)
+#define ETHERNET_TX_OWN              (1UL << 31U)
+#define ETHERNET_TX_CHECKSUM_FULL    (3UL << 22U)
+#define ETHERNET_RX_ERROR            (1UL << 15U)
+#define ETHERNET_RX_FIRST_SEGMENT    (1UL << 9U)
+#define ETHERNET_RX_LAST_SEGMENT     (1UL << 8U)
+#define ETHERNET_RX_FRAME_LENGTH(status) (((status) >> 16U) & 0x3FFFU)
 
 /**
   * @brief Four-word STM32F7 Ethernet DMA descriptor.
@@ -58,6 +66,9 @@ __attribute__((section(".eth"), aligned(32)))
 static uint8_t receiveBuffers[ETHERNET_RX_DESCRIPTOR_COUNT][ETHERNET_BUFFER_SIZE];
 __attribute__((section(".eth"), aligned(32)))
 static uint8_t transmitBuffers[ETHERNET_TX_DESCRIPTOR_COUNT][ETHERNET_BUFFER_SIZE];
+static uint8_t ethernetPhyAddress;
+static uint32_t receiveDescriptorIndex;
+static uint32_t transmitDescriptorIndex;
 
 static Ethernet_StatusTypeDef ethernetMac_WaitForClear(
   volatile uint32_t* registerAddress,
@@ -82,6 +93,9 @@ Ethernet_StatusTypeDef EthernetMac_Init(
 ) {
   if ((macAddress == NULL) || (phyAddress > 31U))
     return ETHERNET_STATUS_INVALID_ARGUMENT;
+  ethernetPhyAddress = phyAddress;
+  receiveDescriptorIndex = 0U;
+  transmitDescriptorIndex = 0U;
 
   SET_BIT(SYSCFG->PMC, SYSCFG_PMC_MII_RMII_SEL);
   SET_BIT(RCC->AHB1RSTR, RCC_AHB1RSTR_ETHMACRST);
@@ -125,8 +139,8 @@ Ethernet_StatusTypeDef EthernetMac_Init(
   }
 
   for (uint32_t index = 0U; index < ETHERNET_TX_DESCRIPTOR_COUNT; index++) {
-    transmitDescriptors[index].status = 0U;
-    transmitDescriptors[index].control = ETHERNET_TX_CHAINED;
+    transmitDescriptors[index].status = ETHERNET_TX_CHAINED;
+    transmitDescriptors[index].control = 0U;
     transmitDescriptors[index].bufferAddress =
       (uint32_t)&transmitBuffers[index][0];
     transmitDescriptors[index].nextDescriptor = (uint32_t)
@@ -144,13 +158,116 @@ Ethernet_StatusTypeDef EthernetMac_Init(
   if (status != ETHERNET_STATUS_OK)
     return status;
 
-  status = ethernetMac_ConfigureLink(phyAddress);
-  if (status != ETHERNET_STATUS_OK)
-    return status;
+  SET_BIT(ETH->MACCR, ETH_MACCR_DM | ETH_MACCR_FES | ETH_MACCR_IPCO);
 
   SET_BIT(ETH->DMAOMR, ETH_DMAOMR_SR | ETH_DMAOMR_ST);
   SET_BIT(ETH->MACCR, ETH_MACCR_RE | ETH_MACCR_TE);
   return ETHERNET_STATUS_OK;
+}
+
+Ethernet_StatusTypeDef EthernetMac_UpdateLink(uint8_t* linkUp) {
+  if (linkUp == NULL)
+    return ETHERNET_STATUS_INVALID_ARGUMENT;
+  uint16_t basicStatus = 0U;
+  Ethernet_StatusTypeDef status = ethernetMac_ReadPhy(
+    ethernetPhyAddress, LAN8742_BSR, &basicStatus
+  );
+  if (status == ETHERNET_STATUS_OK) {
+    status = ethernetMac_ReadPhy(
+      ethernetPhyAddress, LAN8742_BSR, &basicStatus
+    );
+  }
+  if (status != ETHERNET_STATUS_OK)
+    return status;
+  *linkUp = 0U;
+  if ((basicStatus & LAN8742_BSR_LINK_STATUS) == 0U)
+    return ETHERNET_STATUS_OK;
+  status = ethernetMac_ConfigureLink(ethernetPhyAddress);
+  if (status == ETHERNET_STATUS_PHY_TIMEOUT)
+    return ETHERNET_STATUS_OK;
+  if (status == ETHERNET_STATUS_OK)
+    *linkUp = 1U;
+  return status;
+}
+
+Ethernet_StatusTypeDef EthernetMac_Transmit(
+  const uint8_t* frame,
+  size_t length
+) {
+  if ((frame == NULL) || (length == 0U))
+    return ETHERNET_STATUS_INVALID_ARGUMENT;
+  if (length > ETHERNET_BUFFER_SIZE)
+    return ETHERNET_STATUS_FRAME_TOO_LARGE;
+  EthernetDmaDescriptor_TypeDef* descriptor =
+    &transmitDescriptors[transmitDescriptorIndex];
+  if ((descriptor->status & ETHERNET_TX_OWN) != 0U)
+    return ETHERNET_STATUS_TRANSMIT_BUSY;
+  memcpy(transmitBuffers[transmitDescriptorIndex], frame, length);
+  descriptor->control = (uint32_t)length;
+  __DMB();
+  descriptor->status = ETHERNET_TX_OWN | ETHERNET_TX_FIRST_SEGMENT
+    | ETHERNET_TX_LAST_SEGMENT | ETHERNET_TX_CHECKSUM_FULL
+    | ETHERNET_TX_CHAINED;
+  transmitDescriptorIndex =
+    (transmitDescriptorIndex + 1U) % ETHERNET_TX_DESCRIPTOR_COUNT;
+  if ((ETH->DMASR & ETH_DMASR_TBUS) != 0U)
+    ETH->DMASR = ETH_DMASR_TBUS;
+  ETH->DMATPDR = 0U;
+  return ETHERNET_STATUS_OK;
+}
+
+Ethernet_StatusTypeDef EthernetMac_GetReceivedFrame(
+  const uint8_t** frame,
+  size_t* length
+) {
+  if ((frame == NULL) || (length == NULL))
+    return ETHERNET_STATUS_INVALID_ARGUMENT;
+  EthernetDmaDescriptor_TypeDef* descriptor =
+    &receiveDescriptors[receiveDescriptorIndex];
+  uint32_t status = descriptor->status;
+  if ((status & ETHERNET_RX_OWN) != 0U)
+    return ETHERNET_STATUS_NO_FRAME;
+  size_t frameLength = ETHERNET_RX_FRAME_LENGTH(status);
+  if (((status & ETHERNET_RX_ERROR) != 0U)
+      || ((status & ETHERNET_RX_FIRST_SEGMENT) == 0U)
+      || ((status & ETHERNET_RX_LAST_SEGMENT) == 0U)
+      || (frameLength < 4U)) {
+    EthernetMac_ReleaseReceivedFrame();
+    return ETHERNET_STATUS_FRAME_ERROR;
+  }
+  frameLength -= 4U;
+  if (frameLength > ETHERNET_BUFFER_SIZE) {
+    EthernetMac_ReleaseReceivedFrame();
+    return ETHERNET_STATUS_FRAME_TOO_LARGE;
+  }
+  *frame = receiveBuffers[receiveDescriptorIndex];
+  *length = frameLength;
+  return ETHERNET_STATUS_OK;
+}
+
+void EthernetMac_ReleaseReceivedFrame(void) {
+  EthernetDmaDescriptor_TypeDef* descriptor =
+    &receiveDescriptors[receiveDescriptorIndex];
+  descriptor->status = ETHERNET_RX_OWN;
+  __DMB();
+  receiveDescriptorIndex =
+    (receiveDescriptorIndex + 1U) % ETHERNET_RX_DESCRIPTOR_COUNT;
+  if ((ETH->DMASR & ETH_DMASR_RBUS) != 0U)
+    ETH->DMASR = ETH_DMASR_RBUS;
+  ETH->DMARPDR = 0U;
+}
+
+void EthernetMac_GetAddress(uint8_t macAddress[6]) {
+  if (macAddress == NULL)
+    return;
+  uint32_t low = ETH->MACA0LR;
+  uint32_t high = ETH->MACA0HR;
+  macAddress[0] = (uint8_t)low;
+  macAddress[1] = (uint8_t)(low >> 8U);
+  macAddress[2] = (uint8_t)(low >> 16U);
+  macAddress[3] = (uint8_t)(low >> 24U);
+  macAddress[4] = (uint8_t)high;
+  macAddress[5] = (uint8_t)(high >> 8U);
 }
 
 static Ethernet_StatusTypeDef ethernetMac_WaitForClear(
@@ -220,20 +337,13 @@ static Ethernet_StatusTypeDef ethernetMac_ReadPhy(
 
 static Ethernet_StatusTypeDef ethernetMac_ConfigureLink(uint8_t phyAddress) {
   uint16_t phyStatus = 0U;
-  for (uint32_t elapsedMs = 0U;
-       elapsedMs < ETHERNET_PHY_TIMEOUT_MS;
-       elapsedMs++) {
-    Ethernet_StatusTypeDef status = ethernetMac_ReadPhy(
-      phyAddress,
-      LAN8742_PHYSCSR,
-      &phyStatus
-    );
-    if (status != ETHERNET_STATUS_OK)
-      return status;
-    if ((phyStatus & LAN8742_PHYSCSR_AUTONEGO_DONE) != 0U)
-      break;
-    Common_DelayMicroseconds(1000U);
-  }
+  Ethernet_StatusTypeDef status = ethernetMac_ReadPhy(
+    phyAddress,
+    LAN8742_PHYSCSR,
+    &phyStatus
+  );
+  if (status != ETHERNET_STATUS_OK)
+    return status;
 
   if ((phyStatus & LAN8742_PHYSCSR_AUTONEGO_DONE) == 0U)
     return ETHERNET_STATUS_PHY_TIMEOUT;

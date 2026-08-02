@@ -5,11 +5,11 @@ is the STM32F7 port of the working STM32F407 health checker and is intended to
 retain the same external behavior while taking advantage of the Cortex-M7 and
 the F767 memory layout.
 
-The port is currently at its platform-baseline stage. It contains STM32F767
-clock and MPU setup, FreeRTOS, a native lwIP OS adaptation, low-level
-Ethernet/LAN8742 initialization, and a heartbeat service. HTTPS checks,
-persistent NOR Flash storage, time synchronization, sensors, alarms, and the
-management API remain to be ported and verified on this MCU.
+The port contains STM32F767 clock and MPU setup, FreeRTOS, a native lwIP OS
+adaptation, Ethernet/LAN8742 networking with DHCP and static fallback, W25Q64
+NOR Flash access, and a heartbeat service. HTTPS checks, persistent data
+services, time synchronization, sensors, alarms, and the management API remain
+to be ported and verified on this MCU.
 
 Project documentation:
 
@@ -26,8 +26,10 @@ Project documentation:
 - instruction and data caches enabled
 - FreeRTOS Kernel 11.1.0 using the Cortex-M7 GCC port
 - statically allocated native FreeRTOS adaptation for lwIP
-- low-level Ethernet MAC and LAN8742 PHY initialization
+- Ethernet MAC/DMA and LAN8742 link monitoring
 - non-cacheable, MPU-aligned Ethernet DMA memory
+- lwIP IPv4 frame adapter with DHCP and static fallback
+- W25Q64 SPI NOR Flash driver
 - statically allocated heartbeat task
 - GNU Arm Embedded Makefile build
 
@@ -60,7 +62,28 @@ changing those files.
 
 The current baseline completes a clean build. See
 [the initial port review](docs/PORTING_REVIEW.md) for corrected findings and
-the remaining network-integration work.
+remaining service-porting work.
+
+## Network configuration
+
+With an active Ethernet link, the firmware requests configuration through
+DHCP. If no lease is available after 10 seconds, it applies:
+
+- IP: `192.168.0.50`
+- mask: `255.255.255.0`
+- gateway: `192.168.0.1`
+- DNS: `8.8.8.8`
+
+DHCP remains eligible to replace fallback settings after link or server
+recovery. Each configuration change is reported through USART3:
+
+```text
+ETH configuration: DHCP
+ETH IP: 172.18.10.129
+ETH MASK: 255.255.255.0
+ETH GATE: 172.18.10.1
+ETH DNS: 172.18.10.1
+```
 
 ## Porting constraints
 

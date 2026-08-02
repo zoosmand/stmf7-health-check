@@ -29,6 +29,9 @@
 #define DIAGNOSTIC_GPIO_AF   7U
 #define DIAGNOSTIC_TX_PIN    8U
 #define DIAGNOSTIC_RX_PIN    9U
+#define BOARD_UID_WORD_COUNT 3U
+#define FNV1A_64_OFFSET      UINT64_C(14695981039346656037)
+#define FNV1A_64_PRIME       UINT64_C(1099511628211)
 
 /**
   * @brief One RMII signal's GPIO assignment.
@@ -40,9 +43,8 @@ typedef struct {
   uint8_t pinPosition;
 } BoardEthernetPin_TypeDef;
 
-static const uint8_t ethernetMacAddress[6] = {
-  0x00U, 0x80U, 0xAAU, 0xBBU, 0xCCU, 0xDDU
-};
+static uint8_t ethernetMacAddress[6];
+static uint8_t ethernetMacAddressReady;
 
 static const BoardEthernetPin_TypeDef ethernetPins[] = {
   {GPIOA, 1U},
@@ -61,6 +63,7 @@ static void board_ConfigureAlternatePin(
   uint32_t pinPosition,
   uint32_t alternateFunction
 );
+static const uint8_t* board_GetEthernetMacAddress(void);
 
 void Board_InitDiagnosticUart(void) {
   SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_GPIODEN);
@@ -80,6 +83,7 @@ void Board_InitDiagnosticUart(void) {
 }
 
 void Board_PrintConfiguration(void) {
+  const uint8_t* macAddress = board_GetEthernetMacAddress();
   printf("\nSTM32F767 health checker startup\n");
   printf("Board: ST NUCLEO-F767ZI (MB1137)\n");
   printf("MCU: STM32F767ZIT6, Cortex-M7\n");
@@ -94,6 +98,15 @@ void Board_PrintConfiguration(void) {
     (unsigned long)BOARD_DIAGNOSTIC_BAUD_RATE
   );
   printf("Ethernet: LAN8742A, RMII, PHY address %u\n", ETHERNET_PHY_ADDRESS);
+  printf(
+    "Ethernet MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+    (unsigned)macAddress[0],
+    (unsigned)macAddress[1],
+    (unsigned)macAddress[2],
+    (unsigned)macAddress[3],
+    (unsigned)macAddress[4],
+    (unsigned)macAddress[5]
+  );
   printf("External flash: W25Q64, SPI1 PB3/PB4/PB5, NSS PA4\n");
 }
 
@@ -108,7 +121,39 @@ Ethernet_StatusTypeDef Board_InitEthernet(void) {
     );
   }
 
-  return EthernetMac_Init(ETHERNET_PHY_ADDRESS, ethernetMacAddress);
+  return EthernetMac_Init(
+    ETHERNET_PHY_ADDRESS,
+    board_GetEthernetMacAddress()
+  );
+}
+
+/**
+  * @brief Derive one stable locally administered MAC from the 96-bit MCU UID.
+  * @retval (const uint8_t*) Six-byte address retained for the life of the boot.
+  * @note FNV-1a folds all UID bytes. Bit zero is cleared for unicast and bit
+  *       one is set to identify a locally administered address.
+  */
+static const uint8_t* board_GetEthernetMacAddress(void) {
+  if (ethernetMacAddressReady == 0U) {
+    const volatile uint32_t* uid = (const volatile uint32_t*)UID_BASE;
+    uint64_t hash = FNV1A_64_OFFSET;
+    for (uint32_t wordIndex = 0U;
+         wordIndex < BOARD_UID_WORD_COUNT;
+         wordIndex++) {
+      uint32_t word = uid[wordIndex];
+      for (uint32_t byteIndex = 0U; byteIndex < sizeof(word); byteIndex++) {
+        hash ^= (uint8_t)(word >> (byteIndex * 8U));
+        hash *= FNV1A_64_PRIME;
+      }
+    }
+    for (uint32_t index = 0U; index < sizeof(ethernetMacAddress); index++) {
+      ethernetMacAddress[index] = (uint8_t)(hash >> (index * 8U));
+    }
+    ethernetMacAddress[0] =
+      (ethernetMacAddress[0] & 0xFCU) | 0x02U;
+    ethernetMacAddressReady = 1U;
+  }
+  return ethernetMacAddress;
 }
 
 /**
