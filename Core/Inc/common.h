@@ -78,6 +78,21 @@ typedef struct {
 extern SystemClocks_TypeDef systemClocks;
 
 /**
+  * @brief Initialize serialization for formatted diagnostic output.
+  * @retval SUCCESS Output mutex created and ready.
+  * @retval ERROR Output mutex creation failed.
+  */
+ErrorStatus Common_InitOutput(void);
+
+/**
+  * @brief Emit one complete formatted diagnostic message atomically.
+  * @param format (const char*) Standard printf-compatible format string.
+  * @retval (int) Number of characters emitted, or a negative error.
+  */
+int Common_Printf(const char* format, ...)
+  __attribute__((format(printf, 1, 2)));
+
+/**
   * @brief Stop execution after an unrecoverable system failure.
   */
 void System_ErrorHandler(void) __attribute__((noreturn));

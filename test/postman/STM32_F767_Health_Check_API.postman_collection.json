@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a7ed9183-c25b-4ec7-8fc4-df47ca130010",
-    "name": "STM32 F407 Health Check API",
-    "description": "End-to-end authorization, user, health-check, telemetry, log, and TLS credential tests. Set secret password variables and DER file paths locally.",
+    "name": "STM32 F767 Health Check API",
+    "description": "End-to-end STM32F767 authorization, user, health-check, log, trust-anchor, and TLS credential tests. Set secret password variables and DER file paths locally before running the collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -26,7 +26,7 @@
         "pm.test(\"Device is operational\", () => pm.response.to.have.status(200));",
         "const body = pm.response.json();",
         "pm.expect(body.status).to.eql(\"ok\");",
-        "pm.expect(body.systems).to.include({api: true, network: true, rtc: true, flash: true, temperature: true});"
+        "pm.expect(body.systems).to.include({api: true, network: true, time: true, flash: true});"
       ]}}],
       "request": {
         "method": "GET",
@@ -94,32 +94,6 @@
         "header": [{"key": "Content-Type", "value": "application/json"}],
         "body": {"mode": "raw", "raw": "{\n  \"password\": \"{{testPassword}}\",\n  \"enabled\": true\n}"},
         "url": "{{baseUrl}}/api/v1/users/{{testUsername}}"
-      }
-    },
-    {
-      "name": "Get RTC",
-      "event": [{"listen": "test", "script": {"exec": [
-        "pm.test(\"RTC returned\", () => pm.response.to.have.status(200));",
-        "const body = pm.response.json();",
-        "pm.expect(body).to.have.property(\"synchronized\");",
-        "pm.expect(body).to.have.property(\"unix_time\");"
-      ]}}],
-      "request": {
-        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
-        "method": "GET",
-        "url": "{{baseUrl}}/api/v1/rtc"
-      }
-    },
-    {
-      "name": "Get temperature",
-      "event": [{"listen": "test", "script": {"exec": [
-        "pm.test(\"Temperature returned\", () => pm.response.to.have.status(200));",
-        "pm.expect(pm.response.json().sensors).to.be.an(\"array\");"
-      ]}}],
-      "request": {
-        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
-        "method": "GET",
-        "url": "{{baseUrl}}/api/v1/temperature"
       }
     },
     {
@@ -329,4 +303,3 @@
     }
   ]
 }
-

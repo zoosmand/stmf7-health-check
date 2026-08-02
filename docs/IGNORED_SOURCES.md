@@ -10,36 +10,38 @@ Before building, provide these paths from a known-good STM32F767 package:
 
 ```text
 Drivers/CMSIS/
+Middlewares/Third_Party/MbedTLS/
 ```
 
-The checkout currently tracks the FreeRTOS kernel and the project-specific
-lwIP tree. Do not replace them with arbitrary releases: the firmware integration
-depends on their checked-in versions and configuration.
-
-Future health-check stages will add Mbed TLS. When it is introduced, use the
-exact submodule revision recorded by this repository and initialize nested
-submodules with:
-
-```sh
-git submodule update --init --recursive
-```
+The checkout tracks the FreeRTOS kernel and the project-specific lwIP tree. Do
+not replace them with arbitrary releases. Supply Mbed TLS 3.6.7 at the exact
+path above; the Makefile and `TLS/Inc/health_checker_mbedtls_config.h` select
+the embedded subset used by the TLS 1.3 checker. The known-good source tree can
+also be copied from the neighboring STM32F407 health-check project.
 
 ## Prepare a fork
 
-1. Clone the fork and initialize recorded submodules:
+1. Clone the fork:
 
    ```sh
    git clone <fork-url>
    cd stmf7-health-check
-   git submodule update --init --recursive
    ```
 
-2. Copy the compatible STM32F7 CMSIS source tree into `Drivers/CMSIS/`.
+2. Copy the compatible STM32F7 CMSIS source tree into `Drivers/CMSIS/` and
+   Mbed TLS 3.6.7 into `Middlewares/Third_Party/MbedTLS/`.
 
-3. Confirm that the device headers include STM32F767 support and that the local
+3. Generate the ignored management-server certificate, key, and embedded
+   credential header:
+
+   ```sh
+   tools/generate_server_certificate.sh health-check.local 192.168.0.50
+   ```
+
+4. Confirm that the device headers include STM32F767 support and that the local
    toolchain provides `arm-none-eabi-gcc`.
 
-4. Build from the repository root:
+5. Build from the repository root:
 
    ```sh
    make clean

@@ -22,6 +22,8 @@
 #ifndef __LWIPOPTS__H__
 #define __LWIPOPTS__H__
 
+#include <stdint.h>
+
 // #include "main.h"
 
 /*-----------------------------------------------------------------------------*/
@@ -58,6 +60,10 @@
 /*----- Value in opt.h for LWIP_DHCP: 0 -----*/
 #define LWIP_DHCP 1
 #define LWIP_DNS 1
+#define SNTP_SERVER_DNS 1
+#define SNTP_UPDATE_DELAY 3600000U
+#define SNTP_SET_SYSTEM_TIME(seconds) TimeService_SetUnixTime(seconds)
+void TimeService_SetUnixTime(uint32_t unixTime);
 /*----- Value in opt.h for NO_SYS: 0 -----*/
 #define NO_SYS 0
 /*----- Value in opt.h for SYS_LIGHTWEIGHT_PROT: 1 -----*/
@@ -65,7 +71,7 @@
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /* Keep the lwIP heap linker-visible instead of using an unreserved address. */
-#define MEM_SIZE 4096
+#define MEM_SIZE (10U * 1024U)
 #define TCPIP_THREAD_STACKSIZE 2048
 #define TCPIP_THREAD_PRIO 2
 #define TCPIP_MBOX_SIZE 16
@@ -86,9 +92,13 @@
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
 /*----- Value in opt.h for LWIP_NETCONN: 1 -----*/
-#define LWIP_NETCONN 0
+#define LWIP_NETCONN 1
 /*----- Value in opt.h for LWIP_SOCKET: 1 -----*/
-#define LWIP_SOCKET 0
+#define LWIP_SOCKET 1
+#define LWIP_SO_RCVTIMEO 1
+#define LWIP_SO_SNDTIMEO 1
+#define DEFAULT_TCP_RECVMBOX_SIZE 8U
+#define DEFAULT_ACCEPTMBOX_SIZE 4U
 /*----- Value in opt.h for RECV_BUFSIZE_DEFAULT: INT_MAX -----*/
 #define RECV_BUFSIZE_DEFAULT 2000000000
 /*----- Value in opt.h for LWIP_STATS: 1 -----*/

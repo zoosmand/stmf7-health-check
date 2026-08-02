@@ -1,10 +1,10 @@
 /**
   ******************************************************************************
-  * @file           : main.h
-  * @brief          : Application entry-point dependencies.
+  * @file           : health_check_types.h
+  * @brief          : Shared status types for health-check components.
   * @project        : STM32F767 Health Check
   * @platform       : STMicroelectronics STM32F767ZIT6
-  * @created        : 29.09.2025
+  * @created        : 02.08.2026
   ******************************************************************************
   * @attention
   *
@@ -18,25 +18,12 @@
   ******************************************************************************
   */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef HEALTH_CHECK_TYPES_H
+#define HEALTH_CHECK_TYPES_H
 
-#include "FreeRTOS.h"
-#include "task.h"
+typedef enum {
+  HEALTH_CHECK_STATUS_OK = 0,
+  HEALTH_CHECK_STATUS_ERROR,
+} HealthCheck_StatusTypeDef;
 
-#include "common.h"
-#include "gpio.h"
-#include "heart_beat.h"
-#include "health_check_service.h"
-#include "health_check_types.h"
-#include "health_check_config.h"
-#include "health_check_log.h"
-#include "init_ll.h"
-#include "network_service.h"
-#include "spi.h"
-#include "time_service.h"
-#include "tls_platform.h"
-#include "tls_trust_store.h"
-#include "w25q64.h"
-
-#endif /* MAIN_H */
+#endif /* HEALTH_CHECK_TYPES_H */

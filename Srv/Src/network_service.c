@@ -81,7 +81,7 @@ uint8_t NetworkService_IsReady(void) {
 
 static void networkService_Task(void* argument) {
   (void)argument;
-  printf("Network service: started.\n");
+  Common_Printf("Network service: started.\n");
   if (sys_sem_new(&networkInitSemaphore, 0U) != ERR_OK)
     System_ErrorHandler();
   networkInitResult = ERR_IF;
@@ -219,7 +219,7 @@ static void networkService_Report(const char* source) {
   (void)ip4addr_ntoa_r(gateway, gatewayText, sizeof(gatewayText));
   (void)ip4addr_ntoa_r(dnsAddress, dnsText, sizeof(dnsText));
   networkReady = netif_is_link_up(&networkInterface) ? 1U : 0U;
-  printf(
+  Common_Printf(
     "ETH configuration: %s\n"
     "ETH IP: %s\n"
     "ETH MASK: %s\n"

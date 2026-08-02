@@ -1,10 +1,10 @@
 /**
   ******************************************************************************
-  * @file           : main.h
-  * @brief          : Application entry-point dependencies.
+  * @file           : time_service.h
+  * @brief          : SNTP-backed UTC time service interface.
   * @project        : STM32F767 Health Check
   * @platform       : STMicroelectronics STM32F767ZIT6
-  * @created        : 29.09.2025
+  * @created        : 02.08.2026
   ******************************************************************************
   * @attention
   *
@@ -18,25 +18,18 @@
   ******************************************************************************
   */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef TIME_SERVICE_H
+#define TIME_SERVICE_H
 
 #include "FreeRTOS.h"
-#include "task.h"
-
-#include "common.h"
-#include "gpio.h"
-#include "heart_beat.h"
-#include "health_check_service.h"
 #include "health_check_types.h"
-#include "health_check_config.h"
-#include "health_check_log.h"
-#include "init_ll.h"
-#include "network_service.h"
-#include "spi.h"
-#include "time_service.h"
-#include "tls_platform.h"
-#include "tls_trust_store.h"
-#include "w25q64.h"
 
-#endif /* MAIN_H */
+#include <stdint.h>
+
+BaseType_t TimeService_Init(void);
+uint8_t TimeService_IsSynchronized(void);
+HealthCheck_StatusTypeDef TimeService_GetUnixTime(uint32_t* unixTime);
+uint32_t TimeService_GetUptimeMs(void);
+void TimeService_SetUnixTime(uint32_t unixTime);
+
+#endif /* TIME_SERVICE_H */

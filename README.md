@@ -7,9 +7,9 @@ the F767 memory layout.
 
 The port contains STM32F767 clock and MPU setup, FreeRTOS, a native lwIP OS
 adaptation, Ethernet/LAN8742 networking with DHCP and static fallback, W25Q64
-NOR Flash access, and a heartbeat service. HTTPS checks, persistent data
-services, time synchronization, sensors, alarms, and the management API remain
-to be ported and verified on this MCU.
+NOR Flash access, a heartbeat service, SNTP time synchronization, periodic
+authenticated HTTPS resource checks, and an authenticated HTTPS management
+API. Sensors and alarms remain to be ported and verified on this MCU.
 
 Project documentation:
 
@@ -30,6 +30,11 @@ Project documentation:
 - non-cacheable, MPU-aligned Ethernet DMA memory
 - lwIP IPv4 frame adapter with DHCP and static fallback
 - W25Q64 SPI NOR Flash driver
+- SNTP synchronization with `pool.ntp.org`
+- Mbed TLS 3.6.7 with hardware-RNG entropy and TLS 1.3-only policy
+- persistent HTTPS resource configuration and wear-aware result log
+- periodic authenticated HTTP `HEAD` checks
+- TLS 1.3 management API with bearer-token authentication
 - statically allocated heartbeat task
 - GNU Arm Embedded Makefile build
 
@@ -42,9 +47,8 @@ the compatibility target for the port:
 - `test/postman/` contains the management API acceptance collection;
 - `tools/` contains credential and verifier preparation utilities.
 
-The Postman collection and TLS-related tools become applicable as their
-corresponding firmware services are ported. Their presence does not mean those
-services are available in the current baseline.
+The TLS verifier tools apply to the resource checker and management server.
+The Postman collection is the end-to-end management API acceptance suite.
 
 ## Build
 
@@ -84,6 +88,115 @@ ETH MASK: 255.255.255.0
 ETH GATE: 172.18.10.1
 ETH DNS: 172.18.10.1
 ```
+
+## HTTPS health checking
+
+After the network has a usable IPv4 address and SNTP supplies trusted UTC, the
+health-check task checks every enabled resource sequentially. The factory
+configuration contains one resource:
+
+```text
+https://pgw.intraclear.com/
+```
+
+The request uses TLS 1.3 and HTTP `HEAD`. Certificate chain, hostname, and
+validity dates are verified against the resource's selected trust anchor. A
+resource is healthy only when the TLS transaction succeeds and the server
+returns HTTP status `200`; redirects and all other statuses are failures.
+
+Successful output has this form:
+
+```text
+HTTPS check: https://pgw.intraclear.com/
+TLS: TLSv1.3, <cipher suite>, certificate valid
+HTTP HEAD: 200, <elapsed> ms
+Resource health: OK
+```
+
+Failure output reports the last completed transport stage:
+
+```text
+HTTPS failure: stage=<stage>, detail=<detail>, <elapsed> ms
+Resource health: FAILED
+```
+
+| Stage | Meaning |
+| ---: | --- |
+| 1 | DNS resolution failed. |
+| 2 | TCP connection failed. |
+| 3 | TLS configuration or allocation failed. |
+| 4 | Certificate parsing or validation failed. |
+| 5 | TLS handshake failed for a reason other than certificate validation. |
+| 6 | Encrypted request transmission failed. |
+| 7 | The HTTP status line was missing or malformed. |
+
+`detail` is an lwIP error, a negated socket `errno`, or an Mbed TLS error code,
+depending on the stage. Checks run every 60 seconds by default. Configuration
+supports three resources and periods from 60 through 1800 seconds; the
+management API provides persistent mutation.
+
+Configuration is stored as alternating transactional snapshots in W25Q64
+sectors 3 and 4 from the top of the device. Results use an append-only ring in
+sectors 7 and 8 from the top. Trust anchors use two two-sector banks in sectors
+9 through 12. These allocations match the F407 layout and must not be reordered
+without a migration.
+
+## Management API
+
+The device listens on TCP port `443` after networking and TLS storage are
+ready. Its compiled recovery certificate is self-signed, so development clients
+must explicitly trust it or disable verification only for isolated testing.
+Generate a deployment certificate and embedded recovery header with:
+
+```sh
+tools/generate_server_certificate.sh health-check.local 192.168.0.50
+```
+
+The built-in administrator username is `master`. Firmware stores only a random
+salt and PBKDF2-HMAC-SHA-256 verifier. Generate or rotate it with:
+
+```sh
+python3 tools/generate_master_verifier.py
+```
+
+Rebuild and reflash after changing the compiled master verifier or recovery
+certificate. Additional users are stored in NOR flash. Every account has one
+session: login or refresh rotates both tokens and invalidates the previous
+pair. Access tokens last 15 minutes, refresh tokens seven days, and reset
+invalidates all sessions.
+
+| Method | Endpoint | Authorization | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/health` | None | Check API, network, synchronized time, and NOR flash. |
+| `POST` | `/api/v1/auth/token` | None | Exchange credentials for an access/refresh pair. |
+| `POST` | `/api/v1/auth/refresh` | Refresh token in JSON | Rotate both tokens. |
+| `POST` | `/api/v1/auth/revoke` | Bearer | Revoke the current session. |
+| `GET`, `POST` | `/api/v1/users` | Administrator bearer | List or create users. |
+| `PUT`, `DELETE` | `/api/v1/users/{username}` | Administrator bearer | Update or delete a user. |
+| `PUT` | `/api/v1/tls/certificate` | Administrator bearer | Stage a DER server certificate. |
+| `PUT` | `/api/v1/tls/private-key` | Administrator bearer | Stage a DER server private key. |
+| `GET`, `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | List, add, or reset CA anchors. |
+| `PUT`, `DELETE` | `/api/v1/trust-anchors/{id}` | Administrator bearer | Replace or delete an anchor. |
+| `GET`, `PUT` | `/api/v1/health-check/config` | Administrator bearer | Read or change the check period. |
+| `POST` | `/api/v1/health-check/resources` | Administrator bearer | Add one of three resources. |
+| `PUT`, `DELETE` | `/api/v1/health-check/resources/{index}` | Administrator bearer | Update or remove a resource. |
+| `GET` | `/api/v1/health-check/logs` | Any bearer | Return the ten newest results. |
+
+Passwords must contain 12 through 128 bytes and usernames at most 24 bytes.
+The unauthenticated `/health` endpoint returns HTTP `200` with `status: "ok"`
+only when API, network, synchronized time, and flash are operational; otherwise
+it returns HTTP `503`. Remote-resource health is reported through the log and
+does not affect this device self-check.
+
+Server credential uploads accept raw DER only: one certificate up to 1152 bytes
+and one private key up to 384 bytes. The pair is parsed, matched, and committed
+transactionally; subsequent connections use it. The compiled recovery pair is
+used whenever no valid flash override exists.
+
+Import `test/postman/STM32_F767_Health_Check_API.postman_collection.json` and
+set `baseUrl`, `masterPassword`, `testPassword`, and the three DER file paths.
+Postman may require binary upload files to be selected manually. The collection
+retains issued tokens and created resource/anchor indices automatically.
 
 ## Porting constraints
 

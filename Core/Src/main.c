@@ -26,41 +26,50 @@
 
 int main(void) {
   Board_InitDiagnosticUart();
+  if (Common_InitOutput() != SUCCESS)
+    System_ErrorHandler();
   Board_PrintConfiguration();
 
-  printf("Startup: initializing W25Q64 Flash...\n");
+  Common_Printf("Startup: initializing W25Q64 Flash...\n");
   Spi1_Init();
   W25Q64_StatusTypeDef flashStatus = W25Q64_Init();
   if (flashStatus == W25Q64_STATUS_OK)
-    printf("Startup: W25Q64 Flash ready.\n");
+    Common_Printf("Startup: W25Q64 Flash ready.\n");
   else
-    printf("W25Q64 initialization failed: %u\n", (unsigned)flashStatus);
+    Common_Printf("W25Q64 initialization failed: %u\n", (unsigned)flashStatus);
 
-  printf("Startup: initializing heartbeat output...\n");
+  Common_Printf("Startup: initializing heartbeat output...\n");
   Gpio_InitOutput(GPIOB, HEART_BEAT_PIN_POSITION);
   GPIO_PIN_RESET(GPIOB, 1UL << HEART_BEAT_PIN_POSITION);
-  printf("Startup: heartbeat output ready.\n");
+  Common_Printf("Startup: heartbeat output ready.\n");
 
-  printf("Startup: initializing Ethernet MAC and PHY...\n");
+  Common_Printf("Startup: initializing Ethernet MAC and PHY...\n");
   Ethernet_StatusTypeDef ethernetStatus = Board_InitEthernet();
   if (ethernetStatus == ETHERNET_STATUS_OK)
-    printf("Startup: Ethernet MAC and PHY ready.\n");
+    Common_Printf("Startup: Ethernet MAC and PHY ready.\n");
   else
-    printf("Ethernet initialization failed: %u\n", (unsigned)ethernetStatus);
+    Common_Printf("Ethernet initialization failed: %u\n", (unsigned)ethernetStatus);
 
-  printf("Startup: creating heartbeat service...\n");
+  Common_Printf("Startup: creating heartbeat service...\n");
   if (HeartBeatService_Init() != pdPASS)
     System_ErrorHandler();
-  printf("Startup: heartbeat service ready.\n");
+  Common_Printf("Startup: heartbeat service ready.\n");
 
   if (ethernetStatus == ETHERNET_STATUS_OK) {
-    printf("Startup: creating network service...\n");
+    Common_Printf("Startup: creating network service...\n");
     if (NetworkService_Init() != pdPASS)
       System_ErrorHandler();
-    printf("Startup: network service ready.\n");
+    Common_Printf("Startup: network service ready.\n");
   }
 
-  printf("Startup: starting FreeRTOS scheduler.\n");
+  Common_Printf("Startup: initializing HTTPS health checker...\n");
+  if ((TimeService_Init() != pdPASS)
+      || (HealthCheckService_Init() != SUCCESS)) {
+    System_ErrorHandler();
+  }
+  Common_Printf("Startup: HTTPS health checker ready.\n");
+
+  Common_Printf("Startup: starting FreeRTOS scheduler.\n");
   vTaskStartScheduler();
   System_ErrorHandler();
 }
