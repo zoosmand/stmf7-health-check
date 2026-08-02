@@ -101,7 +101,7 @@ static void networkService_Task(void* argument) {
       linkPollAt = now;
       (void)tcpip_callback_with_block(
         networkService_CoreProcess,
-        &now,
+        NULL,
         1U
       );
     }
@@ -141,9 +141,12 @@ static void networkService_CoreInit(void* argument) {
 }
 
 static void networkService_CoreProcess(void* argument) {
-  uint32_t now = *(const uint32_t*)argument;
+  (void)argument;
   if (NetworkInterface_UpdateLink(&networkInterface) != ERR_OK)
     return;
+  if (!netif_is_link_up(&networkInterface))
+    return;
+  uint32_t now = sys_now();
   if (dhcp_supplied_address(&networkInterface) != 0U) {
     if (activeConfiguration != NETWORK_CONFIGURATION_DHCP) {
       activeConfiguration = NETWORK_CONFIGURATION_DHCP;

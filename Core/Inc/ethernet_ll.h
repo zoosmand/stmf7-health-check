@@ -32,7 +32,7 @@ typedef enum {
   ETHERNET_STATUS_INVALID_ARGUMENT,   /**< Pointer, address, or length invalid. */
   ETHERNET_STATUS_DMA_TIMEOUT,        /**< DMA reset or operation timed out. */
   ETHERNET_STATUS_MDIO_TIMEOUT,       /**< PHY management transfer timed out. */
-  ETHERNET_STATUS_PHY_TIMEOUT,        /**< Autonegotiation is not complete. */
+  ETHERNET_STATUS_PHY_NEGOTIATING,    /**< Autonegotiation is not complete. */
   ETHERNET_STATUS_PHY_MODE_ERROR,     /**< Negotiated mode is unsupported. */
   ETHERNET_STATUS_NO_FRAME,           /**< No received frame is pending. */
   ETHERNET_STATUS_FRAME_ERROR,        /**< DMA marked the frame invalid. */

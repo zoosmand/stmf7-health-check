@@ -183,7 +183,7 @@ Ethernet_StatusTypeDef EthernetMac_UpdateLink(uint8_t* linkUp) {
   if ((basicStatus & LAN8742_BSR_LINK_STATUS) == 0U)
     return ETHERNET_STATUS_OK;
   status = ethernetMac_ConfigureLink(ethernetPhyAddress);
-  if (status == ETHERNET_STATUS_PHY_TIMEOUT)
+  if (status == ETHERNET_STATUS_PHY_NEGOTIATING)
     return ETHERNET_STATUS_OK;
   if (status == ETHERNET_STATUS_OK)
     *linkUp = 1U;
@@ -346,7 +346,7 @@ static Ethernet_StatusTypeDef ethernetMac_ConfigureLink(uint8_t phyAddress) {
     return status;
 
   if ((phyStatus & LAN8742_PHYSCSR_AUTONEGO_DONE) == 0U)
-    return ETHERNET_STATUS_PHY_TIMEOUT;
+    return ETHERNET_STATUS_PHY_NEGOTIATING;
 
   CLEAR_BIT(ETH->MACCR, ETH_MACCR_DM | ETH_MACCR_FES);
   switch (phyStatus & LAN8742_PHYSCSR_HCDSPEEDMASK) {
