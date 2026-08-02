@@ -7,9 +7,9 @@ services are ported from the STM32F407 health checker.
 
 The repository now provides a cleanly building hardware and FreeRTOS baseline.
 Its project-owned startup, GPIO, heartbeat, Ethernet setup, and lwIP OS adapter
-have consistent interfaces and documented failure behavior. It is suitable for
-incremental service porting, but it is not yet a complete network application:
-the lwIP `netif` frame adapter and link-management service remain future work.
+have consistent interfaces and documented failure behavior. The later network
+baseline adds the lwIP frame adapter, link monitoring, DHCP, and static
+fallback. Application protocols remain future work.
 
 ## Corrected findings
 
@@ -38,13 +38,7 @@ the lwIP `netif` frame adapter and link-management service remain future work.
 
 ## Remaining port work
 
-- Add an lwIP network-interface adapter that transfers frames between pbufs and
-  the non-cacheable Ethernet DMA rings.
-- Add PHY link monitoring so initialization does not depend on cable state and
-  MAC/DMA operation recovers after disconnect and reconnect.
-- Add DHCP, fallback addressing, and network diagnostics after the frame path is
-  operational.
-- Port RTC/NTP, watchdog, SPI1 W25Q64, sensors, and diagnostic services.
+- Port RTC/NTP, watchdog, sensors, and diagnostic services.
 - Port Mbed TLS, HTTPS checks, persistent configuration/logging, the management
   API, and alarms in individually testable stages.
 

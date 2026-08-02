@@ -34,6 +34,7 @@ Core/Src/common.c \
 Core/Src/ethernet_ll.c \
 Core/Src/init_ll.c \
 Core/Src/main.c \
+Core/Src/network_interface.c \
 Core/Src/stm32f7xx_it.c \
 Core/Src/syscalls.c \
 Core/Src/system.c \
@@ -41,9 +42,10 @@ Periph/Src/gpio.c \
 Periph/Src/spi.c \
 Periph/Src/w25q64.c \
 Srv/Src/heart_beat.c \
+Srv/Src/network_service.c \
 lwip/system/OS/sys_arch.c \
 $(wildcard lwip/core/*.c) \
-$(wildcard lwip/core/ip4/*.c) \
+$(wildcard lwip/core/ipv4/*.c) \
 $(wildcard lwip/api/*.c) \
 lwip/netif/ethernet.c \
 FreeRTOS-Kernel/list.c \

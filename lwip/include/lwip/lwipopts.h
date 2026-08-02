@@ -40,7 +40,7 @@
 /* STM32CubeMX Specific Parameters (not defined in opt.h) ---------------------*/
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- WITH_RTOS disabled (Since FREERTOS is not set) -----*/
-#define WITH_RTOS 0
+#define WITH_RTOS 1
 /*----- CHECKSUM_BY_HARDWARE enabled -----*/
 #define CHECKSUM_BY_HARDWARE 1
 /*-----------------------------------------------------------------------------*/
@@ -57,14 +57,18 @@
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- Value in opt.h for LWIP_DHCP: 0 -----*/
 #define LWIP_DHCP 1
+#define LWIP_DNS 1
 /*----- Value in opt.h for NO_SYS: 0 -----*/
 #define NO_SYS 0
 /*----- Value in opt.h for SYS_LIGHTWEIGHT_PROT: 1 -----*/
-#define SYS_LIGHTWEIGHT_PROT 0
+#define SYS_LIGHTWEIGHT_PROT 1
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
-/*----- Default Value for F7 devices: 0x20048000 -----*/
-#define LWIP_RAM_HEAP_POINTER 0x20048000
+/* Keep the lwIP heap linker-visible instead of using an unreserved address. */
+#define MEM_SIZE 4096
+#define TCPIP_THREAD_STACKSIZE 2048
+#define TCPIP_THREAD_PRIO 2
+#define TCPIP_MBOX_SIZE 16
 /*----- Value in opt.h for MEMP_NUM_SYS_TIMEOUT: (LWIP_TCP + IP_REASSEMBLY + LWIP_ARP + (2*LWIP_DHCP) + LWIP_AUTOIP + LWIP_IGMP + LWIP_DNS + (PPP_SUPPORT*6*MEMP_NUM_PPP_PCB) + (LWIP_IPV6 ? (1 + LWIP_IPV6_REASS + LWIP_IPV6_MLD) : 0)) -*/
 #define MEMP_NUM_SYS_TIMEOUT 15
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/

@@ -40,3 +40,11 @@ The ST-LINK virtual COM port is connected to USART3 and is the standard
 | VCP RX | PD9 | USART3 alternate function 7 |
 
 Serial settings are **115200 baud, 8 data bits, no parity, 1 stop bit**.
+
+## Ethernet identity
+
+The firmware derives the Ethernet MAC address from the STM32F767's factory
+96-bit unique device ID. The derived address is stable for a given MCU and is
+marked as locally administered and unicast; no globally assigned vendor OUI is
+claimed. Startup output prints the resulting address for DHCP reservations and
+device identification.
