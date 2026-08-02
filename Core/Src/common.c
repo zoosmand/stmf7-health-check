@@ -24,7 +24,6 @@
 #include <stdio.h>
 
 static void common_WriteCharacter(uint8_t character);
-static void common_WriteItm(uint8_t character, uint32_t channel);
 
 void System_ErrorHandler(void) {
   __disable_irq();
@@ -73,31 +72,10 @@ static void common_WriteCharacter(uint8_t character) {
   if (character == (uint8_t)'\n')
     common_WriteCharacter((uint8_t)'\r');
 
-#ifdef ITM_OUT
-  common_WriteItm(character, ITM_OUT);
-#endif
-
 #ifdef USART_OUT
   while (READ_BIT(USART_OUT->ISR, USART_ISR_TXE) == 0U) {
     __NOP();
   }
   USART_OUT->TDR = character;
 #endif
-}
-
-/**
-  * @brief Write one character to an enabled ITM stimulus port.
-  * @param character (uint8_t) Character to transmit.
-  * @param channel (uint32_t) ITM stimulus channel from 0 through 31.
-  */
-static void common_WriteItm(uint8_t character, uint32_t channel) {
-  if (((ITM->TCR & ITM_TCR_ITMENA_Msk) == 0U)
-      || ((ITM->TER & (1UL << channel)) == 0U)) {
-    return;
-  }
-
-  while (ITM->PORT[channel].u32 == 0U) {
-    __NOP();
-  }
-  ITM->PORT[channel].u8 = character;
 }

@@ -25,17 +25,27 @@
 #define HEART_BEAT_PIN_POSITION 14U
 
 int main(void) {
+  Board_InitDiagnosticUart();
+  Board_PrintConfiguration();
+
+  printf("Startup: initializing heartbeat output...\n");
   Gpio_InitOutput(GPIOB, HEART_BEAT_PIN_POSITION);
   GPIO_PIN_RESET(GPIOB, 1UL << HEART_BEAT_PIN_POSITION);
+  printf("Startup: heartbeat output ready.\n");
 
+  printf("Startup: initializing Ethernet MAC and PHY...\n");
   Ethernet_StatusTypeDef ethernetStatus = Board_InitEthernet();
-  if (ethernetStatus != ETHERNET_STATUS_OK) {
+  if (ethernetStatus == ETHERNET_STATUS_OK)
+    printf("Startup: Ethernet MAC and PHY ready.\n");
+  else
     printf("Ethernet initialization failed: %u\n", (unsigned)ethernetStatus);
-  }
 
+  printf("Startup: creating heartbeat service...\n");
   if (HeartBeatService_Init() != pdPASS)
     System_ErrorHandler();
+  printf("Startup: heartbeat service ready.\n");
 
+  printf("Startup: starting FreeRTOS scheduler.\n");
   vTaskStartScheduler();
   System_ErrorHandler();
 }

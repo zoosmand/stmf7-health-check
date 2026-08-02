@@ -22,3 +22,15 @@ required by W25Q commands and makes the driver easier to reuse.
 PB3 and PB4 overlap full-JTAG signals on STM32F767. They remain available when
 the board uses the two-wire SWD debug interface, but firmware and debugger
 configuration must not enable full JTAG while SPI1 is in use.
+
+## Diagnostic console
+
+The ST-LINK virtual COM port is connected to USART3 and is the standard
+`printf()` destination on every build host:
+
+| Signal | STM32F767 pin | Configuration |
+|--------|---------------|---------------|
+| VCP TX | PD8 | USART3 alternate function 7 |
+| VCP RX | PD9 | USART3 alternate function 7 |
+
+Serial settings are **115200 baud, 8 data bits, no parity, 1 stop bit**.

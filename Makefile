@@ -170,11 +170,7 @@ ASFLAGS += $(DEBUGFLAGS)
 endif
 
 ifeq ($(OUTPUT), 1)
-ifeq ($(SYS), Darwin)
-OUTPUTFLAGS = -DITM_OUT=0
-else ifeq ($(SYS), Linux)
 OUTPUTFLAGS = -DUSART_OUT=USART3
-endif
 CFLAGS += $(OUTPUTFLAGS)
 ASFLAGS += $(OUTPUTFLAGS)
 endif

@@ -22,8 +22,13 @@
 
 #include "common.h"
 
+#include <stdio.h>
+
 #define ETHERNET_PHY_ADDRESS 0U
 #define ETHERNET_GPIO_AF     11U
+#define DIAGNOSTIC_GPIO_AF   7U
+#define DIAGNOSTIC_TX_PIN    8U
+#define DIAGNOSTIC_RX_PIN    9U
 
 /**
   * @brief One RMII signal's GPIO assignment.
@@ -56,6 +61,41 @@ static void board_ConfigureAlternatePin(
   uint32_t pinPosition,
   uint32_t alternateFunction
 );
+
+void Board_InitDiagnosticUart(void) {
+  SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_GPIODEN);
+  SET_BIT(RCC->APB1ENR, RCC_APB1ENR_USART3EN);
+  (void)RCC->APB1ENR;
+
+  board_ConfigureAlternatePin(GPIOD, DIAGNOSTIC_TX_PIN, DIAGNOSTIC_GPIO_AF);
+  board_ConfigureAlternatePin(GPIOD, DIAGNOSTIC_RX_PIN, DIAGNOSTIC_GPIO_AF);
+
+  CLEAR_BIT(USART3->CR1, USART_CR1_UE);
+  USART3->CR1 = USART_CR1_TE | USART_CR1_RE;
+  USART3->CR2 = 0U;
+  USART3->CR3 = 0U;
+  USART3->BRR = (systemClocks.pclk1Hz + (BOARD_DIAGNOSTIC_BAUD_RATE / 2U))
+    / BOARD_DIAGNOSTIC_BAUD_RATE;
+  SET_BIT(USART3->CR1, USART_CR1_UE);
+}
+
+void Board_PrintConfiguration(void) {
+  printf("\nSTM32F767 health checker startup\n");
+  printf("Board: ST NUCLEO-F767ZI (MB1137)\n");
+  printf("MCU: STM32F767ZIT6, Cortex-M7\n");
+  printf(
+    "Clocks: core=%lu MHz, APB1=%lu MHz, APB2=%lu MHz\n",
+    (unsigned long)(systemClocks.systemCoreHz / 1000000U),
+    (unsigned long)(systemClocks.pclk1Hz / 1000000U),
+    (unsigned long)(systemClocks.pclk2Hz / 1000000U)
+  );
+  printf(
+    "Console: ST-LINK VCP, USART3 PD8/PD9, %lu 8N1\n",
+    (unsigned long)BOARD_DIAGNOSTIC_BAUD_RATE
+  );
+  printf("Ethernet: LAN8742A, RMII, PHY address %u\n", ETHERNET_PHY_ADDRESS);
+  printf("External flash: W25Q64, SPI1 PB3/PB4/PB5, NSS PA4\n");
+}
 
 Ethernet_StatusTypeDef Board_InitEthernet(void) {
   for (uint32_t index = 0U;

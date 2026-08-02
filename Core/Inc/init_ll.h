@@ -23,6 +23,18 @@
 
 #include "ethernet_ll.h"
 
+#define BOARD_DIAGNOSTIC_BAUD_RATE 115200U
+
+/**
+  * @brief Configure USART3 on PD8/PD9 for the ST-LINK virtual COM port.
+  */
+void Board_InitDiagnosticUart(void);
+
+/**
+  * @brief Print the fixed board and clock configuration through printf().
+  */
+void Board_PrintConfiguration(void);
+
 /**
   * @brief Configure RMII pins and initialize the Ethernet MAC and LAN8742 PHY.
   * @retval (Ethernet_StatusTypeDef) Initialization result.
