@@ -1,91 +1,44 @@
 /**
   ******************************************************************************
-  * @file           : init.h
-  * @brief          : Header for init.c file.
-  *                   The header file contains the common defines of the 
-  *                   peripherals initialization.
+  * @file           : init_ll.h
+  * @brief          : Board-level peripheral initialization interface.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 01.10.2025
   ******************************************************************************
   * @attention
   *
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
- 
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __GENERAL_INIT_H
-#define __GENERAL_INIT_H
 
-#ifdef __cplusplus
-  extern "C" {
-#endif 
+#ifndef INIT_LL_H
+#define INIT_LL_H
 
-/* Includes ------------------------------------------------------------------*/
+#include "ethernet_ll.h"
 
-/* Private includes ----------------------------------------------------------*/
-#include "main.h"
+#define BOARD_DIAGNOSTIC_BAUD_RATE 115200U
 
+/**
+  * @brief Configure USART3 on PD8/PD9 for the ST-LINK virtual COM port.
+  */
+void Board_InitDiagnosticUart(void);
 
-#define LED_RED_Pin               GPIO_PIN_14
-#define LED_RED_Pin_Pos           GPIO_PIN_14_Pos
-#define LED_RED_Pin_Mask          GPIO_PIN_14_Mask
-#define LED_RED_Port              GPIOB
+/**
+  * @brief Print the fixed board and clock configuration through printf().
+  */
+void Board_PrintConfiguration(void);
 
+/**
+  * @brief Configure RMII pins and initialize the Ethernet MAC and LAN8742 PHY.
+  * @retval (Ethernet_StatusTypeDef) Initialization result.
+  */
+Ethernet_StatusTypeDef Board_InitEthernet(void);
 
-/* Ethernet GPIO -------------------------------------------------------------*/
-#define ETH_REF_CLOCK_Pin         GPIO_PIN_1
-#define ETH_REF_CLOCK_Pin_Pos     GPIO_PIN_1_Pos
-#define ETH_REF_CLOCK_Pin_Mask    GPIO_PIN_1_Mask
-#define ETH_REF_CLOCK_Port        GPIOA
-
-#define ETH_MDIO_Pin              GPIO_PIN_2
-#define ETH_MDIO_Pin_Pos          GPIO_PIN_2_Pos
-#define ETH_MDIO_Pin_Mask         GPIO_PIN_2_Mask
-#define ETH_MDIO_Port             GPIOA
-
-#define ETH_CRS_DV_Pin            GPIO_PIN_7
-#define ETH_CRS_DV_Pin_Pos        GPIO_PIN_7_Pos
-#define ETH_CRS_DV_Pin_Mask       GPIO_PIN_7_Mask
-#define ETH_CRS_DV_Port           GPIOA
-
-#define ETH_TXD1_Pin              GPIO_PIN_13
-#define ETH_TXD1_Pin_Pos          GPIO_PIN_13_Pos
-#define ETH_TXD1_Pin_Mask         GPIO_PIN_13_Mask
-#define ETH_TXD1_Port             GPIOB
-
-#define ETH_MDC_Pin               GPIO_PIN_1
-#define ETH_MDC_Pin_Pos           GPIO_PIN_1_Pos
-#define ETH_MDC_Pin_Mask          GPIO_PIN_1_Mask
-#define ETH_MDC_Port              GPIOC
-
-#define ETH_RXD0_Pin              GPIO_PIN_4
-#define ETH_RXD0_Pin_Pos          GPIO_PIN_4_Pos
-#define ETH_RXD0_Pin_Mask         GPIO_PIN_4_Mask
-#define ETH_RXD0_Port             GPIOC
-
-#define ETH_RXD1_Pin              GPIO_PIN_5
-#define ETH_RXD1_Pin_Pos          GPIO_PIN_5_Pos
-#define ETH_RXD1_Pin_Mask         GPIO_PIN_5_Mask
-#define ETH_RXD1_Port             GPIOC
-
-#define ETH_TX_EN_Pin             GPIO_PIN_11
-#define ETH_TX_EN_Pin_Pos         GPIO_PIN_11_Pos
-#define ETH_TX_EN_Pin_Mask        GPIO_PIN_11_Mask
-#define ETH_TX_EN_Port            GPIOG
-
-#define ETH_TXD0_Pin             GPIO_PIN_13
-#define ETH_TXD0_Pin_Pos         GPIO_PIN_13_Pos
-#define ETH_TXD0_Pin_Mask        GPIO_PIN_13_Mask
-#define ETH_TXD0_Port            GPIOG
-
-
-
-
-
-// int Init_LED();
-int Init_ETH_LL();
-
-
-
-#ifdef __cplusplus
-}
-#endif
-#endif /* __GENERAL_INIT_H */
+#endif /* INIT_LL_H */

@@ -1,227 +1,260 @@
 /**
   ******************************************************************************
-  * @file           : ethernet.c
-  * @brief          : The C code file provides a collection of ethernet code.
+  * @file           : ethernet_ll.c
+  * @brief          : STM32F767 Ethernet MAC and LAN8742 low-level setup.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 01.10.2025
   ******************************************************************************
   * @attention
   *
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
- 
- 
-/* Includes ------------------------------------------------------------------*/
+
 #include "ethernet_ll.h"
 
-/* Global variables ----------------------------------------------------------*/
+#include "common.h"
+#include "lan8742.h"
 
-/* Private variables ---------------------------------------------------------*/
+#include <stddef.h>
 
-/* Private function prototypes -----------------------------------------------*/
-static uint32_t eth_mdio_cr_from_hclk(uint32_t);
+#define ETHERNET_RX_DESCRIPTOR_COUNT 8U
+#define ETHERNET_TX_DESCRIPTOR_COUNT 8U
+#define ETHERNET_BUFFER_SIZE         1536U
+#define ETHERNET_REGISTER_TIMEOUT    1000000U
+#define ETHERNET_PHY_TIMEOUT_MS      3000U
 
+#define ETHERNET_RX_OWN              (1UL << 31U)
+#define ETHERNET_RX_CHAINED          (1UL << 14U)
+#define ETHERNET_RX_BUFFER_MASK      0x1FFFUL
+#define ETHERNET_TX_CHAINED          (1UL << 20U)
 
-__STATIC_INLINE void mdio_write(uint8_t, uint8_t, uint16_t);
-__STATIC_INLINE uint16_t mdio_read(uint8_t, uint8_t);
+/**
+  * @brief Four-word STM32F7 Ethernet DMA descriptor.
+  * @param status (uint32_t) DMA ownership and frame status bits.
+  * @param control (uint32_t) Buffer length and descriptor control bits.
+  * @param bufferAddress (uint32_t) DMA buffer address.
+  * @param nextDescriptor (uint32_t) Next descriptor address in the ring.
+  */
+typedef struct {
+  volatile uint32_t status;
+  volatile uint32_t control;
+  volatile uint32_t bufferAddress;
+  volatile uint32_t nextDescriptor;
+} EthernetDmaDescriptor_TypeDef;
 
-static void phy_read_link(uint8_t, int*, phy_speed_t*, phy_duplex_t*);
-static void mac_apply_speed_duplex(phy_speed_t, phy_duplex_t);
+__attribute__((section(".eth"), aligned(32)))
+static EthernetDmaDescriptor_TypeDef receiveDescriptors[ETHERNET_RX_DESCRIPTOR_COUNT];
+__attribute__((section(".eth"), aligned(32)))
+static EthernetDmaDescriptor_TypeDef transmitDescriptors[ETHERNET_TX_DESCRIPTOR_COUNT];
+__attribute__((section(".eth"), aligned(32)))
+static uint8_t receiveBuffers[ETHERNET_RX_DESCRIPTOR_COUNT][ETHERNET_BUFFER_SIZE];
+__attribute__((section(".eth"), aligned(32)))
+static uint8_t transmitBuffers[ETHERNET_TX_DESCRIPTOR_COUNT][ETHERNET_BUFFER_SIZE];
 
+static Ethernet_StatusTypeDef ethernetMac_WaitForClear(
+  volatile uint32_t* registerAddress,
+  uint32_t mask,
+  Ethernet_StatusTypeDef timeoutStatus
+);
+static Ethernet_StatusTypeDef ethernetMac_WritePhy(
+  uint8_t phyAddress,
+  uint8_t registerAddress,
+  uint16_t value
+);
+static Ethernet_StatusTypeDef ethernetMac_ReadPhy(
+  uint8_t phyAddress,
+  uint8_t registerAddress,
+  uint16_t* value
+);
+static Ethernet_StatusTypeDef ethernetMac_ConfigureLink(uint8_t phyAddress);
 
+Ethernet_StatusTypeDef EthernetMac_Init(
+  uint8_t phyAddress,
+  const uint8_t macAddress[6]
+) {
+  if ((macAddress == NULL) || (phyAddress > 31U))
+    return ETHERNET_STATUS_INVALID_ARGUMENT;
 
-/* Place in **AXI SRAM**, 32-byte aligned; mark non-cacheable or do cache maintenance */
-__attribute__((section(".eth"), aligned(32))) static eth_rx_desc_t rx_desc[ETH_RX_DESC_CNT];
-__attribute__((section(".eth"), aligned(32))) static eth_tx_desc_t tx_desc[ETH_TX_DESC_CNT];
-
-__attribute__((section(".eth"), aligned(32))) static uint8_t rx_buf[ETH_RX_DESC_CNT][ETH_RX_BUF_SIZE];
-__attribute__((section(".eth"), aligned(32))) static uint8_t tx_buf[ETH_TX_DESC_CNT][ETH_TX_BUF_SIZE];
-
-static uint32_t rx_idx = 0, tx_idx = 0;
-
-
-
-
-
-
-__STATIC_INLINE void mdio_write(uint8_t phy, uint8_t reg, uint16_t val) {
-  while (!(PREG_CHECK(ETH->MACMIIAR, ETH_MACMIIAR_MB_Pos)));
-
-  ETH->MACMIIDR = val;
-
-  SET_BIT(ETH->MACMIIAR, ( 
-      ETH_MACMIIAR_MB
-    | ETH_MACMIIAR_MW
-    | (0b100 << ETH_MACMIIAR_CR_Pos)
-    | (reg << ETH_MACMIIAR_MR_Pos)
-    | (phy << ETH_MACMIIAR_PA_Pos)
-  ));
-
-  while (!(PREG_CHECK(ETH->MACMIIAR, ETH_MACMIIAR_MB_Pos)));
-}
-
-
-
-__STATIC_INLINE uint16_t mdio_read(uint8_t phy, uint8_t reg) {
-  while (!(PREG_CHECK(ETH->MACMIIAR, ETH_MACMIIAR_MB_Pos)));
-  
-  SET_BIT(ETH->MACMIIAR, (
-    ETH_MACMIIAR_MB
-    | (0b100 << ETH_MACMIIAR_CR_Pos)
-    | (reg << ETH_MACMIIAR_MR_Pos)
-    | (phy << ETH_MACMIIAR_PA_Pos)
-  ));
-  
-  while (!(PREG_CHECK(ETH->MACMIIAR, ETH_MACMIIAR_MB_Pos)));
-  return (uint16_t)ETH->MACMIIDR;
-}
-
-
-
-
-
-int Init_ETH_RMII(uint8_t phy_addr, const uint8_t mac[6]) {
-  /* --- Clocks & RMII select --- */
   SET_BIT(SYSCFG->PMC, SYSCFG_PMC_MII_RMII_SEL);
-
-  /* Optional: MAC reset */
   SET_BIT(RCC->AHB1RSTR, RCC_AHB1RSTR_ETHMACRST);
   CLEAR_BIT(RCC->AHB1RSTR, RCC_AHB1RSTR_ETHMACRST);
 
-  /* --- DMA software reset --- */
-  PREG_SET(ETH->DMABMR, ETH_DMABMR_SR_Pos);
-  while (!(PREG_CHECK(ETH->DMABMR, ETH_DMABMR_SR_Pos)));
+  SET_BIT(ETH->DMABMR, ETH_DMABMR_SR);
+  Ethernet_StatusTypeDef status = ethernetMac_WaitForClear(
+    &ETH->DMABMR,
+    ETH_DMABMR_SR,
+    ETHERNET_STATUS_DMA_TIMEOUT
+  );
+  if (status != ETHERNET_STATUS_OK)
+    return status;
 
+  CLEAR_BIT(ETH->MACCR, ETH_MACCR_TE | ETH_MACCR_RE);
+  ETH->MACFFR = 0U;
+  ETH->MACFCR = 0U;
+  ETH->MACA0HR = ((uint32_t)macAddress[5] << 8U) | macAddress[4];
+  ETH->MACA0LR = ((uint32_t)macAddress[3] << 24U)
+    | ((uint32_t)macAddress[2] << 16U)
+    | ((uint32_t)macAddress[1] << 8U)
+    | macAddress[0];
 
-  /* --- Basic MAC config: disable TX/RX during setup --- */
-  CLEAR_BIT(ETH->MACCR, (ETH_MACCR_TE | ETH_MACCR_RE));
+  SET_BIT(ETH->DMAOMR, ETH_DMAOMR_RSF | ETH_DMAOMR_TSF);
+  MODIFY_REG(
+    ETH->DMABMR,
+    ETH_DMABMR_AAB | ETH_DMABMR_FB
+      | ETH_DMABMR_RDP | ETH_DMABMR_PBL,
+    ETH_DMABMR_AAB | ETH_DMABMR_FB
+      | ETH_DMABMR_RDP_32Beat | ETH_DMABMR_PBL_32Beat
+  );
 
-
-  /* Frame filter: receive own, RA=0, normal perfect filtering */
-  ETH->MACFFR = 0;
-
-  /* Flow control off by default */
-  ETH->MACFCR = 0;
-
-  /* Program MAC address 0 (your unicast) */
-  ETH->MACA0HR = (uint32_t)((mac[5] << 8) | mac[4]);
-  ETH->MACA0LR = (uint32_t)((mac[3] << 24) | (mac[2] << 16) | (mac[1] << 8) | mac[0]);
-
-  /* --- DMA operating mode: store & forward simplifies checksumming --- */
-  /* RX/TX store & forward */
-  SET_BIT(ETH->DMAOMR, (
-      ETH_DMAOMR_RSF
-    | ETH_DMAOMR_TSF
-  ));
-
-  /* DMA bus mode: fixed burst, 32-beat PBL, AAB, 4xPBL when Rx */
-  SET_BIT(ETH->DMABMR, (
-      ETH_DMABMR_AAB
-    | ETH_DMABMR_FB
-    | ETH_DMABMR_RDP_32Beat
-    | ETH_DMABMR_PBL_32Beat
-  ));
-
-  /* --- Descriptor rings --- */
-  for (uint32_t i = 0; i < ETH_RX_DESC_CNT; ++i) {
-    rx_desc[i].RDES0 = RDES0_OWN;
-    rx_desc[i].RDES1 = (ETH_RX_BUF_SIZE & RDES1_RBS1_MASK) | RDES1_RCH;
-    rx_desc[i].RDES2 = (uint32_t)&rx_buf[i][0];
-    rx_desc[i].RDES3 = (uint32_t)&rx_desc[(i + 1) % ETH_RX_DESC_CNT];
+  for (uint32_t index = 0U; index < ETHERNET_RX_DESCRIPTOR_COUNT; index++) {
+    receiveDescriptors[index].status = ETHERNET_RX_OWN;
+    receiveDescriptors[index].control =
+      (ETHERNET_BUFFER_SIZE & ETHERNET_RX_BUFFER_MASK) | ETHERNET_RX_CHAINED;
+    receiveDescriptors[index].bufferAddress =
+      (uint32_t)&receiveBuffers[index][0];
+    receiveDescriptors[index].nextDescriptor = (uint32_t)
+      &receiveDescriptors[(index + 1U) % ETHERNET_RX_DESCRIPTOR_COUNT];
   }
-  for (uint32_t i = 0; i < ETH_TX_DESC_CNT; ++i) {
-    tx_desc[i].TDES0 = 0; /* not owned by DMA yet */
-    tx_desc[i].TDES1 = TDES1_TCH;
-    tx_desc[i].TDES2 = (uint32_t)&tx_buf[i][0];
-    tx_desc[i].TDES3 = (uint32_t)&tx_desc[(i + 1) % ETH_TX_DESC_CNT];
+
+  for (uint32_t index = 0U; index < ETHERNET_TX_DESCRIPTOR_COUNT; index++) {
+    transmitDescriptors[index].status = 0U;
+    transmitDescriptors[index].control = ETHERNET_TX_CHAINED;
+    transmitDescriptors[index].bufferAddress =
+      (uint32_t)&transmitBuffers[index][0];
+    transmitDescriptors[index].nextDescriptor = (uint32_t)
+      &transmitDescriptors[(index + 1U) % ETHERNET_TX_DESCRIPTOR_COUNT];
   }
-  rx_idx = tx_idx = 0;
 
-  /* Base addresses */
-  ETH->DMARDLAR = (uint32_t)&rx_desc[0];
-  ETH->DMATDLAR = (uint32_t)&tx_desc[0];
+  ETH->DMARDLAR = (uint32_t)&receiveDescriptors[0];
+  ETH->DMATDLAR = (uint32_t)&transmitDescriptors[0];
 
-  /* (If D-Cache ON) Clean DCache for descriptors & RX buffers here */
+  status = ethernetMac_WritePhy(
+    phyAddress,
+    LAN8742_BCR,
+    LAN8742_BCR_AUTONEGO_EN | LAN8742_BCR_RESTART_AUTONEGO
+  );
+  if (status != ETHERNET_STATUS_OK)
+    return status;
 
-  /* --- PHY: start autoneg (generic) --- */
-  /* Write BMCR (reg 0): set AN enable + restart AN */
-  mdio_write(phy_addr, 0x00, 0x1200);  // optional: depends on PHY
+  status = ethernetMac_ConfigureLink(phyAddress);
+  if (status != ETHERNET_STATUS_OK)
+    return status;
 
-  
-  /* Wait link, then read speed/duplex from PHY specific status.
-      Example (pseudo): if 100Mbps full-duplex: set MACCR FES|DM */
-  uint32_t maccr = ETH->MACCR;
-  maccr |= ETH_MACCR_IPCO;   /* (optional) IPv4 checksum offload in MAC */
-  maccr |= ETH_MACCR_DM;     /* assume full-duplex initially */
-  maccr |= ETH_MACCR_FES;    /* assume 100 Mbps initially */
-  /* TODO: read your PHY to set DM/FES correctly */
-  ETH->MACCR = maccr;
-
-  /* --- Start DMA reception/transmission --- */
-  ETH->DMAOMR |= ETH_DMAOMR_SR;   /* Start Rx */
-  ETH->DMAOMR |= ETH_DMAOMR_ST;   /* Start Tx */
-
-  /* Enable MAC Rx/Tx */
-  PREG_SET(ETH->MACCR, (
-      ETH_MACCR_RE
-    | ETH_MACCR_TE
-  ));
-
-  return 0;
+  SET_BIT(ETH->DMAOMR, ETH_DMAOMR_SR | ETH_DMAOMR_ST);
+  SET_BIT(ETH->MACCR, ETH_MACCR_RE | ETH_MACCR_TE);
+  return ETHERNET_STATUS_OK;
 }
 
-
-
-
-
-static void phy_read_link(uint8_t phy, int *link_up, phy_speed_t *spd, phy_duplex_t *dup) {
-  /* Read twice to clear latched bits (standard practice) */
-  (void)mdio_read(phy, PHY_BMSR);
-  uint16_t bmsr = mdio_read(phy, PHY_BMSR);
-  *link_up = (bmsr & (1u << 2)) ? 1 : 0;  /* Link Status bit */
-
-  /* LAN8742 special status gives resolved speed/duplex when link up.
-      (Consult datasheet for exact bit positions on your board rev.) */
-  uint16_t sr = mdio_read(phy, PHY_SR);
-  /* Example mapping (adjust if your datasheet differs):
-      bit[10]=Speed (1=100,0=10), bit[13]=Duplex (1=Full), bit[2]=Link */
-  *spd =  (sr & (1u << 10)) ? PHY_SPD_100 : PHY_SPD_10;
-  *dup =  (sr & (1u << 13)) ? PHY_DUP_FULL : PHY_DUP_HALF;
-  if (!(sr & (1u << 2))) *link_up = 0;
+static Ethernet_StatusTypeDef ethernetMac_WaitForClear(
+  volatile uint32_t* registerAddress,
+  uint32_t mask,
+  Ethernet_StatusTypeDef timeoutStatus
+) {
+  uint32_t remaining = ETHERNET_REGISTER_TIMEOUT;
+  while ((READ_REG(*registerAddress) & mask) != 0U) {
+    if (--remaining == 0U)
+      return timeoutStatus;
+  }
+  return ETHERNET_STATUS_OK;
 }
 
+static Ethernet_StatusTypeDef ethernetMac_WritePhy(
+  uint8_t phyAddress,
+  uint8_t registerAddress,
+  uint16_t value
+) {
+  Ethernet_StatusTypeDef status = ethernetMac_WaitForClear(
+    &ETH->MACMIIAR,
+    ETH_MACMIIAR_MB,
+    ETHERNET_STATUS_MDIO_TIMEOUT
+  );
+  if (status != ETHERNET_STATUS_OK)
+    return status;
 
-
-/* Apply to MAC */
-static void mac_apply_speed_duplex(phy_speed_t spd, phy_duplex_t dup) {
-  uint32_t maccr = ETH->MACCR;
-  maccr &= ~(ETH_MACCR_DM | ETH_MACCR_FES);
-  if (dup == PHY_DUP_FULL) maccr |= ETH_MACCR_DM;
-  if (spd == PHY_SPD_100)  maccr |= ETH_MACCR_FES;
-  ETH->MACCR = maccr;
+  ETH->MACMIIDR = value;
+  ETH->MACMIIAR = ETH_MACMIIAR_MB | ETH_MACMIIAR_MW
+    | (0x4UL << ETH_MACMIIAR_CR_Pos)
+    | ((uint32_t)registerAddress << ETH_MACMIIAR_MR_Pos)
+    | ((uint32_t)phyAddress << ETH_MACMIIAR_PA_Pos);
+  return ethernetMac_WaitForClear(
+    &ETH->MACMIIAR,
+    ETH_MACMIIAR_MB,
+    ETHERNET_STATUS_MDIO_TIMEOUT
+  );
 }
 
+static Ethernet_StatusTypeDef ethernetMac_ReadPhy(
+  uint8_t phyAddress,
+  uint8_t registerAddress,
+  uint16_t* value
+) {
+  Ethernet_StatusTypeDef status = ethernetMac_WaitForClear(
+    &ETH->MACMIIAR,
+    ETH_MACMIIAR_MB,
+    ETHERNET_STATUS_MDIO_TIMEOUT
+  );
+  if (status != ETHERNET_STATUS_OK)
+    return status;
 
-
-
-/* Example helpers (32-byte cache line) */
-__STATIC_INLINE uintptr_t align_down(uintptr_t a) {
-  return a & ~(uintptr_t)(DCACHE_LINE - 1u);
+  ETH->MACMIIAR = ETH_MACMIIAR_MB
+    | (0x4UL << ETH_MACMIIAR_CR_Pos)
+    | ((uint32_t)registerAddress << ETH_MACMIIAR_MR_Pos)
+    | ((uint32_t)phyAddress << ETH_MACMIIAR_PA_Pos);
+  status = ethernetMac_WaitForClear(
+    &ETH->MACMIIAR,
+    ETH_MACMIIAR_MB,
+    ETHERNET_STATUS_MDIO_TIMEOUT
+  );
+  if (status == ETHERNET_STATUS_OK)
+    *value = (uint16_t)ETH->MACMIIDR;
+  return status;
 }
 
+static Ethernet_StatusTypeDef ethernetMac_ConfigureLink(uint8_t phyAddress) {
+  uint16_t phyStatus = 0U;
+  for (uint32_t elapsedMs = 0U;
+       elapsedMs < ETHERNET_PHY_TIMEOUT_MS;
+       elapsedMs++) {
+    Ethernet_StatusTypeDef status = ethernetMac_ReadPhy(
+      phyAddress,
+      LAN8742_PHYSCSR,
+      &phyStatus
+    );
+    if (status != ETHERNET_STATUS_OK)
+      return status;
+    if ((phyStatus & LAN8742_PHYSCSR_AUTONEGO_DONE) != 0U)
+      break;
+    Common_DelayMicroseconds(1000U);
+  }
 
-__STATIC_INLINE uintptr_t align_up (uintptr_t a) {
-  return (a + DCACHE_LINE - 1u) & ~(uintptr_t)(DCACHE_LINE - 1u);
+  if ((phyStatus & LAN8742_PHYSCSR_AUTONEGO_DONE) == 0U)
+    return ETHERNET_STATUS_PHY_TIMEOUT;
+
+  CLEAR_BIT(ETH->MACCR, ETH_MACCR_DM | ETH_MACCR_FES);
+  switch (phyStatus & LAN8742_PHYSCSR_HCDSPEEDMASK) {
+    case LAN8742_PHYSCSR_100BTX_FD:
+      SET_BIT(ETH->MACCR, ETH_MACCR_DM | ETH_MACCR_FES);
+      break;
+    case LAN8742_PHYSCSR_100BTX_HD:
+      SET_BIT(ETH->MACCR, ETH_MACCR_FES);
+      break;
+    case LAN8742_PHYSCSR_10BT_FD:
+      SET_BIT(ETH->MACCR, ETH_MACCR_DM);
+      break;
+    case LAN8742_PHYSCSR_10BT_HD:
+      break;
+    default:
+      return ETHERNET_STATUS_PHY_MODE_ERROR;
+  }
+
+  SET_BIT(ETH->MACCR, ETH_MACCR_IPCO);
+  return ETHERNET_STATUS_OK;
 }
-
-
-__STATIC_INLINE void dcache_clean(void *addr, size_t len) {
-    uintptr_t a = (uintptr_t)addr;
-    SCB_CleanDCache_by_Addr((void*)align_down(a), (int)(align_up(a + len) - align_down(a)));
-}
-
-__STATIC_INLINE void dcache_invalidate(void *addr, size_t len) {
-    uintptr_t a = (uintptr_t)addr;
-    SCB_InvalidateDCache_by_Addr((void*)align_down(a), (int)(align_up(a + len) - align_down(a)));
-}
-
-
-

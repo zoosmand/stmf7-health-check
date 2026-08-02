@@ -1,67 +1,62 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @brief          : Application entry point and baseline service startup.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 29.09.2025
   ******************************************************************************
   * @attention
   *
-  * 
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
 
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-/* Private variables ---------------------------------------------------------*/
+#include <stdio.h>
 
-/* Global variables ----------------------------------------------------------*/
-__IO uint32_t _PREG_ = 0;
+#define HEART_BEAT_PIN_POSITION 14U
 
-/* Peripheral initialization statuses ----------------------------------------*/
-
-/* Private function prototypes -----------------------------------------------*/
-
-/* Private functions ---------------------------------------------------------*/
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
 int main(void) {
+  Board_InitDiagnosticUart();
+  Board_PrintConfiguration();
 
-  /* Initialization of necessary peripherals */
-  if (!Init_HeartBeat(HEAR_BEAT_PORT, HEAR_BEAT_PIN_Pos)) FLAG_SET(_PREG_, HEART_BEAT_LED_READY_Flag);
-   if (Init_ETH_LL()) FLAG_SET(_PREG_, ETH_READY_Flag);
+  printf("Startup: initializing heartbeat output...\n");
+  Gpio_InitOutput(GPIOB, HEART_BEAT_PIN_POSITION);
+  GPIO_PIN_RESET(GPIOB, 1UL << HEART_BEAT_PIN_POSITION);
+  printf("Startup: heartbeat output ready.\n");
 
+  printf("Startup: initializing Ethernet MAC and PHY...\n");
+  Ethernet_StatusTypeDef ethernetStatus = Board_InitEthernet();
+  if (ethernetStatus == ETHERNET_STATUS_OK)
+    printf("Startup: Ethernet MAC and PHY ready.\n");
+  else
+    printf("Ethernet initialization failed: %u\n", (unsigned)ethernetStatus);
 
-  /* Run the Heartbeat Service */
-  HeartBeatService();
+  printf("Startup: creating heartbeat service...\n");
+  if (HeartBeatService_Init() != pdPASS)
+    System_ErrorHandler();
+  printf("Startup: heartbeat service ready.\n");
 
-
-  /* Start the scheduler. */
+  printf("Startup: starting FreeRTOS scheduler.\n");
   vTaskStartScheduler();
-
-
-  while (1) {
-    __NOP();
-
-    // LED_Blink(LED_RED_Port, LED_RED_Pin);
-    // _delay_ms(1000);
-    // printf("test\n");
-    // _delay_us(1000);
-
-
-  }
+  System_ErrorHandler();
 }
 
-
-
 #if (configCHECK_FOR_STACK_OVERFLOW > 0)
-
-    void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
-        /* Check pcTaskName for the name of the offending task,
-         * or pxCurrentTCB if pcTaskName has itself been corrupted. */
-        (void) xTask;
-        (void) pcTaskName;
-    }
-
-#endif /* #if (configCHECK_FOR_STACK_OVERFLOW > 0) */
+void vApplicationStackOverflowHook(
+  TaskHandle_t task,
+  char* taskName
+) {
+  (void)task;
+  (void)taskName;
+  System_ErrorHandler();
+}
+#endif

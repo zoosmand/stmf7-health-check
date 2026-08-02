@@ -1,85 +1,32 @@
 /**
   ******************************************************************************
   * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the defines of the application.
+  * @brief          : Application entry-point dependencies.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 29.09.2025
   ******************************************************************************
   * @attention
   *
-  * 
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
 
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __MAIN_H
-#define __MAIN_H
+#ifndef MAIN_H
+#define MAIN_H
 
+#include "FreeRTOS.h"
+#include "task.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-/* Includes ------------------------------------------------------------------*/
-#include <FreeRTOS.h>
-#include <task.h>
-#include <queue.h>
-#include <timers.h>
-#include <semphr.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-
-#include "stm32f7xx.h"
-#include "stm32f7xx_it.h"
-#include "cmsis_os2.h"
-
-/* Private includes ----------------------------------------------------------*/
 #include "common.h"
-#include "init_ll.h"
-#include "ethernet_ll.h"
-#include "lan8742.h"
-// #include "lwipopts.h"
-// #include "cmsis_os.h"
-
-// #include "lwip/timeouts.h"
-// #include "lwip/arch.h"
-// #include "lwip/opt.h"
-// #include "lwip/pbuf.h"
-// #include "lwip/mem.h"
-// #include "lwip/memp.h"
-// #include "netif/etharp.h"
-// #include "lwip/dhcp.h"
-// #include "lwip/netif.h"
-
-#include "lwip/err.h"
-#include "lwip/netif.h"
-
-
-
 #include "gpio.h"
-
 #include "heart_beat.h"
+#include "init_ll.h"
 
-/* Exported types ------------------------------------------------------------*/
-
-/* Exported constants --------------------------------------------------------*/
-
-/* Exported macro ------------------------------------------------------------*/
-
-/* Extern global variables ---------------------------------------------------*/
-
-/* Exported functions prototypes ---------------------------------------------*/
-
-/* Private defines -----------------------------------------------------------*/
-
-/* Public defines ------------------------------------------------------------*/
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __MAIN_H */
+#endif /* MAIN_H */

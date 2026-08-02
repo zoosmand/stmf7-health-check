@@ -1,158 +1,148 @@
-
 /**
   ******************************************************************************
-  * @file           : init.c
-  * @brief          : The C code file provides a collection of peripherals
-  *                   initialization procedures.
+  * @file           : init_ll.c
+  * @brief          : Board-level peripheral initialization.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 01.10.2025
   ******************************************************************************
   * @attention
   *
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
- 
- 
-/* Includes ------------------------------------------------------------------*/
+
 #include "init_ll.h"
 
-/* Global variables ----------------------------------------------------------*/
-const uint8_t eth_mac_addr[6] = {0x00, 0x80, 0xaa, 0xbb, 0xcc, 0xdd};
+#include "common.h"
 
+#include <stdio.h>
 
+#define ETHERNET_PHY_ADDRESS 0U
+#define ETHERNET_GPIO_AF     11U
+#define DIAGNOSTIC_GPIO_AF   7U
+#define DIAGNOSTIC_TX_PIN    8U
+#define DIAGNOSTIC_RX_PIN    9U
 
-// int Init_LED(void) {
-//   /*** GPIO LED -  PB7 ***/
-//   /* Mode */
-//   MODIFY_REG(LED_RED_Port->MODER, LED_RED_Pin_Mask, (_MODE_OUT << LED_RED_Pin_Pos * 2));
-//   /* Speed */
-//   // MODIFY_REG(LED_BLUE_Port->OSPEEDR, LED_BLUE_Pin_Mask, (_SPEED_L << LED_BLUE_Pin_Pos * 2));
-//   // /* Output type */
-//   // MODIFY_REG(LED_BLUE_Port->OTYPER, (_OTYPE_PP << LED_BLUE_Pin_Mask), (_OTYPE_PP << LED_BLUE_Pin_Pos));
-//   // /* Push mode */
-//   // MODIFY_REG(LED_BLUE_Port->PUPDR, LED_BLUE_Pin_Mask, (_PUPD_NO << LED_BLUE_Pin_Pos * 2));
+/**
+  * @brief One RMII signal's GPIO assignment.
+  * @param port (GPIO_TypeDef*) GPIO peripheral containing the signal.
+  * @param pinPosition (uint8_t) GPIO pin position from 0 through 15.
+  */
+typedef struct {
+  GPIO_TypeDef* port;
+  uint8_t pinPosition;
+} BoardEthernetPin_TypeDef;
 
-//   return (0);
-// }
+static const uint8_t ethernetMacAddress[6] = {
+  0x00U, 0x80U, 0xAAU, 0xBBU, 0xCCU, 0xDDU
+};
 
+static const BoardEthernetPin_TypeDef ethernetPins[] = {
+  {GPIOA, 1U},
+  {GPIOA, 2U},
+  {GPIOA, 7U},
+  {GPIOB, 13U},
+  {GPIOC, 1U},
+  {GPIOC, 4U},
+  {GPIOC, 5U},
+  {GPIOG, 11U},
+  {GPIOG, 13U},
+};
 
-int Init_ETH_LL(void) {
+static void board_ConfigureAlternatePin(
+  GPIO_TypeDef* port,
+  uint32_t pinPosition,
+  uint32_t alternateFunction
+);
 
-  /*** ETH_REF_CLOCK / PA1 ***/
-  MODIFY_REG(ETH_REF_CLOCK_Port->MODER, ETH_REF_CLOCK_Pin_Mask, (_MODE_AF << (ETH_REF_CLOCK_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_REF_CLOCK_Port->OSPEEDR, ETH_REF_CLOCK_Pin_Mask, (_SPEED_V << (ETH_REF_CLOCK_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_REF_CLOCK_Port->OTYPER, ETH_REF_CLOCK_Pin, (_OTYPE_PP << ETH_REF_CLOCK_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_REF_CLOCK_Port->PUPDR, ETH_REF_CLOCK_Pin_Mask, (_PUPD_NO << (ETH_REF_CLOCK_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_REF_CLOCK_Port->AFR[0], (0xf << (ETH_REF_CLOCK_Pin_Pos * 4)), (GPIO_AF_11 << (ETH_REF_CLOCK_Pin_Pos * 4)));
+void Board_InitDiagnosticUart(void) {
+  SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_GPIODEN);
+  SET_BIT(RCC->APB1ENR, RCC_APB1ENR_USART3EN);
+  (void)RCC->APB1ENR;
 
+  board_ConfigureAlternatePin(GPIOD, DIAGNOSTIC_TX_PIN, DIAGNOSTIC_GPIO_AF);
+  board_ConfigureAlternatePin(GPIOD, DIAGNOSTIC_RX_PIN, DIAGNOSTIC_GPIO_AF);
 
-  /*** ETH_MDIO / PA2 ***/
-  MODIFY_REG(ETH_MDIO_Port->MODER, ETH_MDIO_Pin_Mask, (_MODE_AF << (ETH_MDIO_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_MDIO_Port->OSPEEDR, ETH_MDIO_Pin_Mask, (_SPEED_V << (ETH_MDIO_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_MDIO_Port->OTYPER, ETH_MDIO_Pin, (_OTYPE_PP << ETH_MDIO_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_MDIO_Port->PUPDR, ETH_MDIO_Pin_Mask, (_PUPD_NO << (ETH_MDIO_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_MDIO_Port->AFR[0], (0xf << (ETH_MDIO_Pin_Pos * 4)), (GPIO_AF_11 << (ETH_MDIO_Pin_Pos * 4)));
+  CLEAR_BIT(USART3->CR1, USART_CR1_UE);
+  USART3->CR1 = USART_CR1_TE | USART_CR1_RE;
+  USART3->CR2 = 0U;
+  USART3->CR3 = 0U;
+  USART3->BRR = (systemClocks.pclk1Hz + (BOARD_DIAGNOSTIC_BAUD_RATE / 2U))
+    / BOARD_DIAGNOSTIC_BAUD_RATE;
+  SET_BIT(USART3->CR1, USART_CR1_UE);
+}
 
+void Board_PrintConfiguration(void) {
+  printf("\nSTM32F767 health checker startup\n");
+  printf("Board: ST NUCLEO-F767ZI (MB1137)\n");
+  printf("MCU: STM32F767ZIT6, Cortex-M7\n");
+  printf(
+    "Clocks: core=%lu MHz, APB1=%lu MHz, APB2=%lu MHz\n",
+    (unsigned long)(systemClocks.systemCoreHz / 1000000U),
+    (unsigned long)(systemClocks.pclk1Hz / 1000000U),
+    (unsigned long)(systemClocks.pclk2Hz / 1000000U)
+  );
+  printf(
+    "Console: ST-LINK VCP, USART3 PD8/PD9, %lu 8N1\n",
+    (unsigned long)BOARD_DIAGNOSTIC_BAUD_RATE
+  );
+  printf("Ethernet: LAN8742A, RMII, PHY address %u\n", ETHERNET_PHY_ADDRESS);
+  printf("External flash: W25Q64, SPI1 PB3/PB4/PB5, NSS PA4\n");
+}
 
-  /*** ETH_CRS_DV / PA7 ***/
-  MODIFY_REG(ETH_CRS_DV_Port->MODER, ETH_CRS_DV_Pin_Mask, (_MODE_AF << (ETH_CRS_DV_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_CRS_DV_Port->OSPEEDR, ETH_CRS_DV_Pin_Mask, (_SPEED_V << (ETH_CRS_DV_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_CRS_DV_Port->OTYPER, ETH_CRS_DV_Pin, (_OTYPE_PP << ETH_CRS_DV_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_CRS_DV_Port->PUPDR, ETH_CRS_DV_Pin_Mask, (_PUPD_NO << (ETH_CRS_DV_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_CRS_DV_Port->AFR[0], (0xf << (ETH_CRS_DV_Pin_Pos * 4)), (GPIO_AF_11 << (ETH_CRS_DV_Pin_Pos * 4)));
-
-
-  /*** ETH_TXD1 / PB13 ***/
-  MODIFY_REG(ETH_TXD1_Port->MODER, ETH_TXD1_Pin_Mask, (_MODE_AF << (ETH_TXD1_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_TXD1_Port->OSPEEDR, ETH_TXD1_Pin_Mask, (_SPEED_V << (ETH_TXD1_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_TXD1_Port->OTYPER, ETH_TXD1_Pin, (_OTYPE_PP << ETH_TXD1_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_TXD1_Port->PUPDR, ETH_TXD1_Pin_Mask, (_PUPD_NO << (ETH_TXD1_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_TXD1_Port->AFR[1], (0xf << ((ETH_TXD1_Pin_Pos - 8) * 4)), (GPIO_AF_11 << ((ETH_TXD1_Pin_Pos - 8) * 4)));
-
-
-  /*** ETH_MDC / PC1 ***/
-  MODIFY_REG(ETH_MDC_Port->MODER, ETH_MDC_Pin_Mask, (_MODE_AF << (ETH_MDC_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_MDC_Port->OSPEEDR, ETH_MDC_Pin_Mask, (_SPEED_V << (ETH_MDC_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_MDC_Port->OTYPER, ETH_MDC_Pin, (_OTYPE_PP << ETH_MDC_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_MDC_Port->PUPDR, ETH_MDC_Pin_Mask, (_PUPD_NO << (ETH_MDC_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_MDC_Port->AFR[0], (0xf << (ETH_MDC_Pin_Pos * 4)), (GPIO_AF_11 << (ETH_MDC_Pin_Pos * 4)));
-
-
-  /*** ETH_RXD0 / PC4 ***/
-  MODIFY_REG(ETH_RXD0_Port->MODER, ETH_RXD0_Pin_Mask, (_MODE_AF << (ETH_RXD0_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_RXD0_Port->OSPEEDR, ETH_RXD0_Pin_Mask, (_SPEED_V << (ETH_RXD0_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_RXD0_Port->OTYPER, ETH_RXD0_Pin, (_OTYPE_PP << ETH_RXD0_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_RXD0_Port->PUPDR, ETH_RXD0_Pin_Mask, (_PUPD_NO << (ETH_RXD0_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_RXD0_Port->AFR[0], (0xf << (ETH_RXD0_Pin_Pos * 4)), (GPIO_AF_11 << (ETH_RXD0_Pin_Pos * 4)));
-
-
-  /*** ETH_RXD1 / PC5 ***/
-  MODIFY_REG(ETH_RXD1_Port->MODER, ETH_RXD1_Pin_Mask, (_MODE_AF << (ETH_RXD1_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_RXD1_Port->OSPEEDR, ETH_RXD1_Pin_Mask, (_SPEED_V << (ETH_RXD1_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_RXD1_Port->OTYPER, ETH_RXD1_Pin, (_OTYPE_PP << ETH_RXD1_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_RXD1_Port->PUPDR, ETH_RXD1_Pin_Mask, (_PUPD_NO << (ETH_RXD1_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_RXD1_Port->AFR[0], (0xf << (ETH_RXD1_Pin_Pos * 4)), (GPIO_AF_11 << (ETH_RXD1_Pin_Pos * 4)));
-
-
-  /*** ETH_TX_EN / PG11 ***/
-  MODIFY_REG(ETH_TX_EN_Port->MODER, ETH_TX_EN_Pin_Mask, (_MODE_AF << (ETH_TX_EN_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_TX_EN_Port->OSPEEDR, ETH_TX_EN_Pin_Mask, (_SPEED_V << (ETH_TX_EN_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_TX_EN_Port->OTYPER, ETH_TX_EN_Pin, (_OTYPE_PP << ETH_TX_EN_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_TX_EN_Port->PUPDR, ETH_TX_EN_Pin_Mask, (_PUPD_NO << (ETH_TX_EN_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_TX_EN_Port->AFR[1], (0xf << ((ETH_TX_EN_Pin_Pos -8) * 4)), (GPIO_AF_11 << ((ETH_TX_EN_Pin_Pos -8) * 4)));
-
-
-  /*** ETH_TXD0 / PG13 ***/
-  MODIFY_REG(ETH_TXD0_Port->MODER, ETH_TXD0_Pin_Mask, (_MODE_AF << (ETH_TXD0_Pin_Pos * 2)));
-  /* Speed */
-  MODIFY_REG(ETH_TXD0_Port->OSPEEDR, ETH_TXD0_Pin_Mask, (_SPEED_V << (ETH_TXD0_Pin_Pos * 2)));
-  /* Output type */
-  MODIFY_REG(ETH_TXD0_Port->OTYPER, ETH_TXD0_Pin, (_OTYPE_PP << ETH_TXD0_Pin_Pos));
-  /* Push mode */
-  MODIFY_REG(ETH_TXD0_Port->PUPDR, ETH_TXD0_Pin_Mask, (_PUPD_NO << (ETH_TXD0_Pin_Pos * 2)));
-  /* Alternate function */
-  MODIFY_REG(ETH_TXD0_Port->AFR[1], (0xf << ((ETH_TXD0_Pin_Pos -8) * 4)), (GPIO_AF_11 << ((ETH_TXD0_Pin_Pos -8) * 4)));
-
-
-
-  
-  
-  for (uint8_t i = 0; i < sizeof(eth_mac_addr); i++) {
-    gnetif.hwaddr[i] = eth_mac_addr[i];
+Ethernet_StatusTypeDef Board_InitEthernet(void) {
+  for (uint32_t index = 0U;
+       index < (sizeof(ethernetPins) / sizeof(ethernetPins[0]));
+       index++) {
+    board_ConfigureAlternatePin(
+      ethernetPins[index].port,
+      ethernetPins[index].pinPosition,
+      ETHERNET_GPIO_AF
+    );
   }
 
+  return EthernetMac_Init(ETHERNET_PHY_ADDRESS, ethernetMacAddress);
+}
 
-  if (Init_ETH_RMII(LAN8742_MAX_DEV_ADDR, eth_mac_addr)) return (1);
+/**
+  * @brief Configure a GPIO for a very-high-speed push-pull alternate function.
+  * @param port (GPIO_TypeDef*) Non-null GPIO peripheral.
+  * @param pinPosition (uint32_t) GPIO pin position from 0 through 15.
+  * @param alternateFunction (uint32_t) Alternate-function number from 0 to 15.
+  */
+static void board_ConfigureAlternatePin(
+  GPIO_TypeDef* port,
+  uint32_t pinPosition,
+  uint32_t alternateFunction
+) {
+  uint32_t modeShift = pinPosition * 2U;
+  uint32_t modeMask = 0x3UL << modeShift;
+  uint32_t pinMask = 1UL << pinPosition;
+  uint32_t alternateIndex = pinPosition / 8U;
+  uint32_t alternateShift = (pinPosition % 8U) * 4U;
 
-  return (0);
+  MODIFY_REG(
+    port->MODER,
+    modeMask,
+    GPIO_MODE_ALTERNATE << modeShift
+  );
+  MODIFY_REG(
+    port->OSPEEDR,
+    modeMask,
+    GPIO_SPEED_VERY_HIGH << modeShift
+  );
+  CLEAR_BIT(port->OTYPER, pinMask);
+  CLEAR_BIT(port->PUPDR, modeMask);
+  MODIFY_REG(
+    port->AFR[alternateIndex],
+    0xFUL << alternateShift,
+    alternateFunction << alternateShift
+  );
 }
