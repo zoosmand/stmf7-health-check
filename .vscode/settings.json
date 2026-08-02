@@ -5,7 +5,8 @@
         "*.h": "c",
         "*.s": "arm",
         "*.S": "arm",
-        "*.inc": "arm"
+        "*.inc": "arm",
+        "random": "c"
     },
     "makefile.configureOnOpen": false
 }

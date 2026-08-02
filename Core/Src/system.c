@@ -18,7 +18,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-
 /**
   * @brief  The function is responsible for resetting all peripherals,
   *         initializing the Flash interface, Systick, clocks, and
@@ -44,15 +43,15 @@ void SystemInit(void) {
   /* Set Interrupt Group Priority */
   NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
 
-  /* Conficure SysTick */
-  SET_BIT(SysTick->CTRL, (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk));
-  SysTick->LOAD = 2160U - 1U;
-  SysTick->VAL = 0;
-  SET_BIT(SysTick->CTRL, SysTick_CTRL_ENABLE_Msk);
+  // /* Conficure SysTick */
+  // SET_BIT(SysTick->CTRL, (SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk));
+  // SysTick->LOAD = 2160U - 1U;
+  // SysTick->VAL = 0;
+  // SET_BIT(SysTick->CTRL, SysTick_CTRL_ENABLE_Msk);
 
-  /* SysTick interrupt configuration */
-  NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
-  NVIC_EnableIRQ(SysTick_IRQn);
+  // /* SysTick interrupt configuration */
+  // NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+  // NVIC_EnableIRQ(SysTick_IRQn);
 
   /* SysCfg */
   PREG_SET(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN_Pos);
@@ -61,8 +60,6 @@ void SystemInit(void) {
   /* PWR */
   PREG_SET(RCC->APB1ENR, RCC_APB1ENR_PWREN_Pos);
   while (!(PREG_CHECK(RCC->APB1ENR, RCC_APB1ENR_PWREN_Pos)));
-  PREG_SET(RCC->APB1ENR, RCC_APB2ENR_SYSCFGEN_Pos);
-  while (!(PREG_CHECK(RCC->APB1ENR, RCC_APB2ENR_SYSCFGEN_Pos)));
 
   /* FLASH_IRQn interrupt configuration */
   NVIC_SetPriority(FLASH_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
@@ -152,6 +149,17 @@ void SystemInit(void) {
   while (!(PREG_CHECK(RCC->CR, RCC_CR_PLLSAIRDY_Pos)));
 
 
+  SET_BIT(CoreDebug->DEMCR, CoreDebug_DEMCR_TRCENA_Msk);
+
+
+  SystemClocks.SystemCore       = 216000000U;
+  SystemClocks.HCLK_Freq        = 216000000U;
+  SystemClocks.PCLK1_Freq       = 54000000U;
+  SystemClocks.PCLK1_Freq_Tim   = 108000000U;
+  SystemClocks.PCLK2_Freq       = 108000000U;
+  SystemClocks.PCLK2_Freq_Tim   = 216000000U;
+  SystemClocks.PLLQ_Freq        = 48000000U;
+
 
   /*****************************************************************************************/
   /*****************************************************************************************/
@@ -181,12 +189,12 @@ void SystemInit(void) {
 
   /*****************************************************************************************/
   /* IWDG */
-  IWDG->KR = IWDG_KEY_ENABLE;
-  IWDG->KR = IWDG_KEY_WR_ACCESS_ENABLE;
-  IWDG->PR =  IWDG_PR_PR & (IWDG_PR_PR_2 | IWDG_PR_PR_0); /*!< Divided by 128 */
-  IWDG->RLR = IWDG_RLR_RL & 624;                          /*<! ~2.5sec.  */
-  while (!(PREG_CHECK(IWDG->SR, IWDG_SR_PVU_Pos)));
-  IWDG->KR = IWDG_KEY_RELOAD;
+  // IWDG->KR = IWDG_KEY_ENABLE;
+  // IWDG->KR = IWDG_KEY_WR_ACCESS_ENABLE;
+  // IWDG->PR =  IWDG_PR_PR & (IWDG_PR_PR_2 | IWDG_PR_PR_0); /*!< Divided by 128 */
+  // IWDG->RLR = IWDG_RLR_RL & 624;                          /*<! ~2.5sec.  */
+  // while (!(PREG_CHECK(IWDG->SR, IWDG_SR_PVU_Pos)));
+  // IWDG->KR = IWDG_KEY_RELOAD;
 
   /*****************************************************************************************/
   /* Peripheral clock */
@@ -199,10 +207,15 @@ void SystemInit(void) {
 
   /* AHB1 */
   SET_BIT(RCC->AHB1ENR, ( 
-      RCC_AHB1ENR_GPIOBEN
+      RCC_AHB1ENR_GPIOAEN
+    | RCC_AHB1ENR_GPIOBEN
     | RCC_AHB1ENR_GPIOCEN
     | RCC_AHB1ENR_GPIODEN
     | RCC_AHB1ENR_GPIOFEN
+    | RCC_AHB1ENR_GPIOGEN
+    | RCC_AHB1ENR_ETHMACEN
+    | RCC_AHB1ENR_ETHMACTXEN
+    | RCC_AHB1ENR_ETHMACRXEN
   ));
 
   /* APB2 */

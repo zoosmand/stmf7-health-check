@@ -21,9 +21,9 @@
 #endif 
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
+#include "main.h"
 
 /* Exported types ------------------------------------------------------------*/
 struct __FILE {
@@ -48,7 +48,31 @@ struct __FILE {
 #define PREG_CLR(registry, key)         CLEAR_BIT(registry, (1 << key))
 #define PREG_CHECK(registry, key)       (READ_BIT(registry, (1 << key)))
 
-/* Extern global variables ---------------------------------------------------*/
+
+
+/* Exported structures -------------------------------------------------------*/
+
+/**
+  * @brief  RCC Clocks Frequency Structure
+  */
+typedef struct {
+  uint32_t SystemCore;          /*!< System Core frequency */ 
+  uint32_t HCLK_Freq;           /*!< HCLK clock frequency */
+  uint32_t PCLK1_Freq;          /*!< PCLK1 clock frequency */
+  uint32_t PCLK1_Freq_Tim;      /*!< PCLK1 clock frequency for timers */
+  uint32_t PCLK2_Freq;          /*!< PCLK2 clock frequency */
+  uint32_t PCLK2_Freq_Tim;      /*!< PCLK2 clock frequency for timers */
+  uint32_t PLLQ_Freq;           /*!< PLLQ clock frequency for USB bus */
+} RCC_ClocksTypeDef;
+
+
+/* Exported global variables -------------------------------------------------*/
+extern RCC_ClocksTypeDef SystemClocks;
+extern __IO uint32_t SysTickCnt;
+
+extern struct netif gnetif;
+
+
 
 /* Private defines -----------------------------------------------------------*/
 /*** NVIC ***/
@@ -152,10 +176,22 @@ struct __FILE {
 #define IWDG_KEY_WR_ACCESS_ENABLE   0x00005555               /*!< IWDG KR Write Access Enable  */
 
 
+/* Peripherals readiness flags */
+
+/* Peripheral initialization statuses ----------------------------------------*/
+#define HEART_BEAT_LED_READY_Flag   0
+#define ETH_READY_Flag              1
+
+
+/* Exported structures -------------------------------------------------------*/
+
 /* Exported functions prototypes ---------------------------------------------*/
 void __attribute__((weak)) Error_Handler(void);
 int __attribute__((weak)) putc_dspl(char);
+void __attribute__((weak)) _delay_us(uint32_t);
+void __attribute__((weak)) _delay_ms(uint32_t);
 
+void LED_Blink(GPIO_TypeDef*, uint16_t);
 
 
 #ifdef __cplusplus

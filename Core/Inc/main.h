@@ -21,19 +21,49 @@ extern "C" {
 
 
 /* Includes ------------------------------------------------------------------*/
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+#include <timers.h>
+#include <semphr.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <time.h>
-//
+#include <unistd.h>
+
 #include "stm32f7xx.h"
+#include "stm32f7xx_it.h"
+#include "cmsis_os2.h"
 
 /* Private includes ----------------------------------------------------------*/
 #include "common.h"
-#include "stm32f7xx_it.h"
+#include "init_ll.h"
+#include "ethernet_ll.h"
+#include "lan8742.h"
+// #include "lwipopts.h"
+// #include "cmsis_os.h"
+
+// #include "lwip/timeouts.h"
+// #include "lwip/arch.h"
+// #include "lwip/opt.h"
+// #include "lwip/pbuf.h"
+// #include "lwip/mem.h"
+// #include "lwip/memp.h"
+// #include "netif/etharp.h"
+// #include "lwip/dhcp.h"
+// #include "lwip/netif.h"
+
+#include "lwip/err.h"
+#include "lwip/netif.h"
+
+
+
+#include "gpio.h"
+
+#include "heart_beat.h"
 
 /* Exported types ------------------------------------------------------------*/
-
 
 /* Exported constants --------------------------------------------------------*/
 
@@ -46,8 +76,6 @@ extern "C" {
 /* Private defines -----------------------------------------------------------*/
 
 /* Public defines ------------------------------------------------------------*/
-
-/* Peripheral initialization statuses ----------------------------------------*/
 
 
 #ifdef __cplusplus

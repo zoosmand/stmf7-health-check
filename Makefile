@@ -14,6 +14,7 @@
 ######################################
 TARGET = stmf7-health-check
 
+include ./lwip/Filelists.mk
 
 ######################################
 # building variables
@@ -41,16 +42,33 @@ BUILD_DIR = build
 # C sources
 C_SOURCES =  \
 $(wildcard Core/Src/*.c) \
-$(wildcard Ext/Src/*.c)
+$(wildcard lwip/system/OS/*.c) \
+$(wildcard lwip/core/*.c) \
+$(wildcard lwip/core/ip4/*.c) \
+$(wildcard lwip/core/ip6/*.c) \
+$(wildcard lwip/api/*.c) \
+$(wildcard lwip/netif/*.c) \
+$(wildcard lwip/netif/ppp/*.c) \
+$(wildcard lwip/netif/ppp/polarssl/*.c) \
+$(wildcard Periph/Src/*.c) \
+$(wildcard Srv/Src/*.c) \
+$(wildcard FreeRTOS-Kernel/*.c) \
+$(wildcard FreeRTOS-Kernel/portable/GCC/ARM_CM7/*.c) \
+FreeRTOS-Kernel/portable/MemMang/heap_4.c
+
 
 # ASM sources
 ASM_SOURCES =  \
 startup_stm32f767xx.s \
-$(wildcard Core/*.s)
+$(wildcard Core/*.s) \
+$(wildcard Periph/*.s) \
+$(wildcard Srv/*.s)
 
 # ASMM sources
 ASMM_SOURCES = \
-$(wildcard Core/*.S)
+$(wildcard Core/*.S) \
+$(wildcard Periph/*.S) \
+$(wildcard Srv/*.S)
 
 
 #######################################
@@ -105,9 +123,15 @@ C_DEFS =  \
 -DPREFETCH_ENABLE=1 \
 -DINSTRUCTION_CACHE_ENABLE=1 \
 -DDATA_CACHE_ENABLE=1 \
--DSTM32F767xx
-
-
+-DSTM32F767xx \
+-DUSE_FULL_ASSERT \
+-DLWIP_IPV4=1 \
+-DLWIP_ETHERNET=1 \
+-DLWIP_ARP=1 \
+-DLWIP_TIMERS=1 \
+-DLWIP_NETIF_LINK_CALLBACK=1 \
+-DLWIP_ACD=1 \
+-DLWIP_DHCP=1 
 
 # AS includes
 AS_INCLUDES = 
@@ -115,10 +139,27 @@ AS_INCLUDES =
 # C includes
 C_INCLUDES =  \
 -ICore/Inc \
--IExt/Inc \
+-IPeriph/Inc \
+-ISrv/Inc \
 -IDrivers/CMSIS/Device/ST/STM32F7xx/Include \
 -IDrivers/CMSIS/Include \
 -IDrivers/CMSIS/Include \
+-IFreeRTOS-Kernel/include \
+-IFreeRTOS-Kernel/portable/GCC/ARM_CM7 \
+-Ilwip/system \
+-Ilwip/system/arch \
+-Ilwip/include \
+-Ilwip/include/lwip \
+-Ilwip/include/lwip/apps \
+-Ilwip/include/lwip/priv \
+-Ilwip/include/lwip/prot \
+-Ilwip/include/netif \
+-Ilwip/include/compat/stdc \
+-Ilwip/include/compat/posix \
+-Ilwip/include/compat/posix/arpa \
+-Ilwip/include/compat/posix/net \
+-Ilwip/include/compat/posix/sys
+
 
 
 # compile gcc flags
@@ -140,7 +181,7 @@ OUTPUTFLAGS = -DDSPL_OUT=putc_dspl_wh2004
 ifeq ($(SYS), Darwin)
 OUTPUTFLAGS += -DITM_OUT=0 
 else ifeq ($(SYS), Linux)
-OUTPUTFLAGS += -DUSART_OUT=USART1
+OUTPUTFLAGS += -DUSART_OUT=USART3
 endif
 CFLAGS += $(OUTPUTFLAGS)
 ASFLAGS += $(OUTPUTFLAGS)
