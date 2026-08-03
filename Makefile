@@ -59,6 +59,7 @@ Srv/Src/health_check_service.c \
 Srv/Src/network_service.c \
 Srv/Src/time_service.c \
 Srv/Src/user_store.c \
+Srv/Src/watchdog_service.c \
 TLS/Src/tls_platform.c \
 TLS/Src/tls_server_credentials.c \
 TLS/Src/tls_transport.c \

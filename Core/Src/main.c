@@ -75,6 +75,11 @@ int main(void) {
   }
   Common_Printf("Startup: HTTPS health checker ready.\n");
 
+  Common_Printf("Startup: creating watchdog service...\n");
+  if (WatchdogService_Init() != pdPASS)
+    System_ErrorHandler();
+  Common_Printf("Startup: watchdog service ready.\n");
+
   Common_Printf("Startup: starting FreeRTOS scheduler.\n");
   vTaskStartScheduler();
   System_ErrorHandler();
