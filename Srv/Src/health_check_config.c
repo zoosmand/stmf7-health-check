@@ -29,8 +29,10 @@
 #include <string.h>
 
 #define HEALTH_CHECK_CONFIG_MAGIC     0x48434643UL
-#define HEALTH_CHECK_CONFIG_VERSION   2U
+#define HEALTH_CHECK_CONFIG_VERSION   3U
+#define HEALTH_CHECK_CONFIG_PREVIOUS_VERSION 2U
 #define HEALTH_CHECK_CONFIG_LEGACY_VERSION 1U
+#define HEALTH_CHECK_CONFIG_PREVIOUS_MAX_RESOURCES 3U
 #define HEALTH_CHECK_CONFIG_SECTOR_A  FLASH_LAYOUT_HEALTH_CHECK_CONFIG_SECTOR_A
 #define HEALTH_CHECK_CONFIG_SECTOR_B  FLASH_LAYOUT_HEALTH_CHECK_CONFIG_SECTOR_B
 
@@ -50,6 +52,18 @@ typedef struct {
 } HealthCheckConfig_SnapshotTypeDef;
 
 typedef struct {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t reserved;
+  uint32_t generation;
+  uint32_t periodSeconds;
+  HealthCheckConfig_ResourceTypeDef resources[
+    HEALTH_CHECK_CONFIG_PREVIOUS_MAX_RESOURCES
+  ];
+  uint32_t crc;
+} HealthCheckConfig_PreviousSnapshotTypeDef;
+
+typedef struct {
   uint8_t occupied;
   uint8_t enabled;
   uint16_t port;
@@ -64,7 +78,7 @@ typedef struct {
   uint32_t generation;
   uint32_t periodSeconds;
   HealthCheckConfig_LegacyResourceTypeDef resources[
-    HEALTH_CHECK_CONFIG_MAX_RESOURCES
+    HEALTH_CHECK_CONFIG_PREVIOUS_MAX_RESOURCES
   ];
   uint32_t crc;
 } HealthCheckConfig_LegacySnapshotTypeDef;
@@ -113,6 +127,34 @@ static uint8_t healthCheckConfig_IsLegacyValid(
     : 0U;
 }
 
+static uint8_t healthCheckConfig_IsPreviousValid(
+  const HealthCheckConfig_PreviousSnapshotTypeDef* candidate
+) {
+  return ((candidate->magic == HEALTH_CHECK_CONFIG_MAGIC)
+      && (candidate->version == HEALTH_CHECK_CONFIG_PREVIOUS_VERSION)
+      && (candidate->periodSeconds >= HEALTH_CHECK_CONFIG_MIN_PERIOD_SECONDS)
+      && (candidate->periodSeconds <= HEALTH_CHECK_CONFIG_MAX_PERIOD_SECONDS)
+      && (candidate->crc == healthCheckConfig_Crc(
+        candidate, offsetof(HealthCheckConfig_PreviousSnapshotTypeDef, crc)
+      )))
+    ? 1U
+    : 0U;
+}
+
+static void healthCheckConfig_MigratePrevious(
+  const HealthCheckConfig_PreviousSnapshotTypeDef* previous,
+  HealthCheckConfig_SnapshotTypeDef* target
+) {
+  memset(target, 0, sizeof(*target));
+  target->generation = previous->generation;
+  target->periodSeconds = previous->periodSeconds;
+  memcpy(
+    target->resources,
+    previous->resources,
+    sizeof(previous->resources)
+  );
+}
+
 static void healthCheckConfig_MigrateLegacy(
   const HealthCheckConfig_LegacySnapshotTypeDef* legacy,
   HealthCheckConfig_SnapshotTypeDef* target
@@ -120,7 +162,9 @@ static void healthCheckConfig_MigrateLegacy(
   memset(target, 0, sizeof(*target));
   target->generation = legacy->generation;
   target->periodSeconds = legacy->periodSeconds;
-  for (uint8_t index = 0U; index < HEALTH_CHECK_CONFIG_MAX_RESOURCES; ++index) {
+  for (uint8_t index = 0U;
+       index < HEALTH_CHECK_CONFIG_PREVIOUS_MAX_RESOURCES;
+       ++index) {
     target->resources[index].occupied = legacy->resources[index].occupied;
     target->resources[index].enabled = legacy->resources[index].enabled;
     target->resources[index].trustAnchorId = 0U;
@@ -207,6 +251,27 @@ HealthCheck_StatusTypeDef HealthCheckConfig_Init(void) {
     snapshot = second;
     activeAddress = HEALTH_CHECK_CONFIG_SECTOR_B;
     return HEALTH_CHECK_STATUS_OK;
+  }
+
+  static HealthCheckConfig_PreviousSnapshotTypeDef previousFirst;
+  static HealthCheckConfig_PreviousSnapshotTypeDef previousSecond;
+  uint8_t previousFirstValid = (W25Q64_Read(
+    HEALTH_CHECK_CONFIG_SECTOR_A, &previousFirst, sizeof(previousFirst)
+  ) == W25Q64_STATUS_OK) && healthCheckConfig_IsPreviousValid(&previousFirst);
+  uint8_t previousSecondValid = (W25Q64_Read(
+    HEALTH_CHECK_CONFIG_SECTOR_B, &previousSecond, sizeof(previousSecond)
+  ) == W25Q64_STATUS_OK) && healthCheckConfig_IsPreviousValid(&previousSecond);
+  if ((previousFirstValid != 0U) || (previousSecondValid != 0U)) {
+    const HealthCheckConfig_PreviousSnapshotTypeDef* previous =
+      ((previousFirstValid != 0U) && ((previousSecondValid == 0U)
+        || (previousFirst.generation >= previousSecond.generation)))
+        ? &previousFirst
+        : &previousSecond;
+    activeAddress = (previous == &previousFirst)
+      ? HEALTH_CHECK_CONFIG_SECTOR_A
+      : HEALTH_CHECK_CONFIG_SECTOR_B;
+    healthCheckConfig_MigratePrevious(previous, &snapshot);
+    return healthCheckConfig_Save(&snapshot);
   }
 
   static HealthCheckConfig_LegacySnapshotTypeDef legacyFirst;

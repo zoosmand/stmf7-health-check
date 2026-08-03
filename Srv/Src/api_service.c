@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define API_SERVICE_PORT              443U
 #define API_SERVICE_TASK_STACK_DEPTH  3072U
@@ -371,6 +372,81 @@ static int apiService_Error(
   return apiService_Respond(ssl, status, reason, json);
 }
 
+static int apiService_FormatLogEntry(
+  char* output,
+  size_t capacity,
+  const HealthCheckLog_EntryTypeDef* entry,
+  uint8_t first
+) {
+  return snprintf(
+    output,
+    capacity,
+    "%s{\"sequence\":%lu,\"timestamp\":%lu,\"resource_index\":%u,"
+    "\"status\":\"%s\",\"http_status\":%u,\"elapsed_ms\":%lu,"
+    "\"detail\":%ld}",
+    first != 0U ? "" : ",",
+    (unsigned long)entry->sequence,
+    (unsigned long)entry->timestampUnix,
+    (unsigned int)entry->resourceIndex,
+    apiService_TransportStatusText(
+      (TlsTransport_StatusTypeDef)entry->status
+    ),
+    (unsigned int)entry->httpStatus,
+    (unsigned long)entry->elapsedMs,
+    (long)entry->detail
+  );
+}
+
+static int apiService_RespondLogs(
+  mbedtls_ssl_context* ssl,
+  const HealthCheckLog_EntryTypeDef* entries,
+  size_t count
+) {
+  static const char prefix[] = "{\"logs\":[";
+  static const char suffix[] = "]}";
+  char fragment[192];
+  size_t bodyLength = (sizeof(prefix) - 1U) + (sizeof(suffix) - 1U);
+  for (size_t index = 0U; index < count; ++index) {
+    int length = apiService_FormatLogEntry(
+      fragment, sizeof(fragment), &entries[index], index == 0U
+    );
+    if ((length <= 0) || ((size_t)length >= sizeof(fragment)))
+      return MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL;
+    bodyLength += (size_t)length;
+  }
+
+  char header[192];
+  int headerLength = snprintf(
+    header,
+    sizeof(header),
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: application/json\r\n"
+    "Content-Length: %lu\r\n"
+    "Connection: close\r\n"
+    "Cache-Control: no-store\r\n\r\n",
+    (unsigned long)bodyLength
+  );
+  if ((headerLength <= 0) || ((size_t)headerLength >= sizeof(header)))
+    return MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL;
+  int result = apiService_WriteAll(ssl, header, (size_t)headerLength);
+  if (result != 0)
+    return result;
+  result = apiService_WriteAll(ssl, prefix, sizeof(prefix) - 1U);
+  if (result != 0)
+    return result;
+  for (size_t index = 0U; index < count; ++index) {
+    int length = apiService_FormatLogEntry(
+      fragment, sizeof(fragment), &entries[index], index == 0U
+    );
+    if ((length <= 0) || ((size_t)length >= sizeof(fragment)))
+      return MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL;
+    result = apiService_WriteAll(ssl, fragment, (size_t)length);
+    if (result != 0)
+      return result;
+  }
+  return apiService_WriteAll(ssl, suffix, sizeof(suffix) - 1U);
+}
+
 static int apiService_TlsCredentialsRespond(
   mbedtls_ssl_context* ssl,
   TlsServerCredentials_StatusTypeDef status,
@@ -561,6 +637,41 @@ static int apiService_Dispatch(
       );
     }
     return apiService_Respond(ssl, 200, "OK", "{\"revoked\":true}");
+  }
+
+  if ((strcmp(request->method, "GET") == 0)
+      && (strcmp(request->path, "/api/v1/rtc") == 0)) {
+    uint32_t unixTime;
+    if (TimeService_GetUnixTime(&unixTime) != HEALTH_CHECK_STATUS_OK) {
+      return apiService_Respond(
+        ssl,
+        503,
+        "Service Unavailable",
+        "{\"synchronized\":false}"
+      );
+    }
+    time_t timestamp = (time_t)unixTime;
+    struct tm utc;
+    if (gmtime_r(&timestamp, &utc) == NULL) {
+      return apiService_Error(
+        ssl, 500, "Internal Server Error", "rtc_conversion_failed"
+      );
+    }
+    char json[128];
+    (void)snprintf(
+      json,
+      sizeof(json),
+      "{\"synchronized\":true,\"unix_time\":%lu,"
+      "\"utc\":\"%04d-%02d-%02dT%02d:%02d:%02dZ\"}",
+      (unsigned long)unixTime,
+      utc.tm_year + 1900,
+      utc.tm_mon + 1,
+      utc.tm_mday,
+      utc.tm_hour,
+      utc.tm_min,
+      utc.tm_sec
+    );
+    return apiService_Respond(ssl, 200, "OK", json);
   }
 
   if ((strcmp(request->method, "GET") == 0)
@@ -1101,38 +1212,11 @@ static int apiService_Dispatch(
 
   if ((strcmp(request->method, "GET") == 0)
       && (strcmp(request->path, "/api/v1/health-check/logs") == 0)) {
-    HealthCheckLog_EntryTypeDef entries[HEALTH_CHECK_LOG_MAX_RESULTS];
+    static HealthCheckLog_EntryTypeDef entries[HEALTH_CHECK_LOG_MAX_RESULTS];
     size_t count = HealthCheckLog_GetRecent(
       entries, HEALTH_CHECK_LOG_MAX_RESULTS
     );
-    char json[API_SERVICE_RESPONSE_SIZE - 192U];
-    size_t used = (size_t)snprintf(json, sizeof(json), "{\"logs\":[");
-    for (size_t index = 0U; index < count; ++index) {
-      int written = snprintf(
-        &json[used],
-        sizeof(json) - used,
-        "%s{\"sequence\":%lu,\"timestamp\":%lu,\"resource_index\":%u,"
-        "\"status\":\"%s\",\"http_status\":%u,\"elapsed_ms\":%lu,"
-        "\"detail\":%ld}",
-        index == 0U ? "" : ",",
-        (unsigned long)entries[index].sequence,
-        (unsigned long)entries[index].timestampUnix,
-        (unsigned int)entries[index].resourceIndex,
-        apiService_TransportStatusText(
-          (TlsTransport_StatusTypeDef)entries[index].status
-        ),
-        (unsigned int)entries[index].httpStatus,
-        (unsigned long)entries[index].elapsedMs,
-        (long)entries[index].detail
-      );
-      if ((written <= 0) || ((size_t)written >= (sizeof(json) - used)))
-        return apiService_Error(
-          ssl, 500, "Internal Server Error", "response_too_large"
-        );
-      used += (size_t)written;
-    }
-    (void)snprintf(&json[used], sizeof(json) - used, "]}");
-    return apiService_Respond(ssl, 200, "OK", json);
+    return apiService_RespondLogs(ssl, entries, count);
   }
 
   return apiService_Error(ssl, 404, "Not Found", "not_found");
