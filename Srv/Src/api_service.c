@@ -39,6 +39,7 @@
 #include "tls_server_credentials.h"
 #include "tls_transport.h"
 #include "tls_trust_store.h"
+#include "version_info.h"
 #include "w25q64.h"
 
 #include <errno.h>
@@ -580,13 +581,16 @@ static int apiService_Dispatch(
     uint8_t healthy = (networkHealthy != 0U)
       && (timeHealthy != 0U)
       && (flashHealthy != 0U);
-    char json[192];
+    char json[256];
     (void)snprintf(
       json,
       sizeof(json),
-      "{\"status\":\"%s\",\"systems\":{\"api\":true,"
+      "{\"status\":\"%s\",\"version\":\"%s\",\"build_date\":\"%s\","
+      "\"systems\":{\"api\":true,"
       "\"network\":%s,\"time\":%s,\"flash\":%s}}",
       healthy != 0U ? "ok" : "failed",
+      FIRMWARE_VERSION,
+      FIRMWARE_BUILD_DATE,
       networkHealthy != 0U ? "true" : "false",
       timeHealthy != 0U ? "true" : "false",
       flashHealthy != 0U ? "true" : "false"

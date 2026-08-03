@@ -158,6 +158,7 @@ AS_INCLUDES =
 
 # C includes
 C_INCLUDES =  \
+-I$(BUILD_DIR) \
 -ICore/Inc \
 -IPeriph/Inc \
 -ISrv/Inc \
@@ -237,8 +238,19 @@ vpath %.s $(sort $(dir $(ASM_SOURCES)))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASMM_SOURCES:.S=.O)))
 vpath %.S $(sort $(dir $(ASMM_SOURCES)))
 
-$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
+$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+
+$(BUILD_DIR)/api_service.o: $(BUILD_DIR)/version_info.h
+
+.PHONY: FORCE
+FORCE:
+
+$(BUILD_DIR)/version_info.h: FORCE | $(BUILD_DIR)
+	@echo '#define FIRMWARE_VERSION "$(shell cat .version)"' > $@.tmp
+	@echo '#define FIRMWARE_BUILD_DATE "$(shell date -u +%Y-%m-%dT%H:%M:%SZ)"' >> $@.tmp
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
+	@rm -f $@.tmp
 
 $(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
 	$(AS) -c $(CFLAGS) $< -o $@

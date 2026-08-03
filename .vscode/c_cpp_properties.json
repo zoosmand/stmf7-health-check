@@ -93,7 +93,10 @@
         "${workspaceRoot}/Periph/Inc",
         "${workspaceRoot}/Srv/Inc",
         "${workspaceRoot}/FreeRTOS-Kernel/include",
-        "${workspaceRoot}/FreeRTOS-Kernel/portable/GCC/ARM_CM7"
+        "${workspaceRoot}/FreeRTOS-Kernel/portable/GCC/ARM_CM7",
+        "${workspaceRoot}/TLS/Inc",
+        "${workspaceRoot}/TLS/Private",
+        "${workspaceRoot}/Middlewares/Third_Party/MbedTLS/Include"
       ],
       "defines": [
         "DEBUG",
@@ -117,8 +120,6 @@
         "INSTRUCTION_CACHE_ENABLE=1",
         "DATA_CACHE_ENABLE=1",
         "STM32F767xx",
-        "USART_OUT=USART3",
-        "LWIP_IPV4=1",
         "__CC_ARM",
         "__INT8_TYPE__=char",
         "__UINT8_TYPE__=unsigned char",
