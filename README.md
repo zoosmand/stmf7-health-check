@@ -194,9 +194,11 @@ invalidates all sessions.
 | `PUT`, `DELETE` | `/api/v1/users/{username}` | Administrator bearer | Update or delete a user. |
 | `PUT` | `/api/v1/tls/certificate` | Administrator bearer | Stage a DER server certificate. |
 | `PUT` | `/api/v1/tls/private-key` | Administrator bearer | Stage a DER server private key. |
-| `GET`, `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | List, add, or reset CA anchors. |
+| `GET` | `/api/v1/trust-anchors` | Any bearer | List CA anchors. |
+| `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | Add or reset CA anchors. |
 | `PUT`, `DELETE` | `/api/v1/trust-anchors/{id}` | Administrator bearer | Replace or delete an anchor. |
-| `GET`, `PUT` | `/api/v1/health-check/config` | Administrator bearer | Read or change the check period. |
+| `GET` | `/api/v1/health-check/config` | Any bearer | Read the check period and resources. |
+| `PUT` | `/api/v1/health-check/config` | Administrator bearer | Change the check period. |
 | `POST` | `/api/v1/health-check/resources` | Administrator bearer | Add one of six resources. |
 | `PUT`, `DELETE` | `/api/v1/health-check/resources/{index}` | Administrator bearer | Update or remove a resource. |
 | `GET` | `/api/v1/health-check/logs` | Any bearer | Return the 50 newest results. |
