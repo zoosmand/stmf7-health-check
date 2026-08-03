@@ -185,7 +185,7 @@ invalidates all sessions.
 
 | Method | Endpoint | Authorization | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/health` | None | Check API, network, synchronized time, and NOR flash. |
+| `GET`, `HEAD` | `/health` | None | Check API, network, synchronized time, and NOR flash. |
 | `POST` | `/api/v1/auth/token` | None | Exchange credentials for an access/refresh pair. |
 | `POST` | `/api/v1/auth/refresh` | Refresh token in JSON | Rotate both tokens. |
 | `POST` | `/api/v1/auth/revoke` | Bearer | Revoke the current session. |

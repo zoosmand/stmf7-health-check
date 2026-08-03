@@ -361,6 +361,34 @@ static int apiService_Respond(
   return apiService_WriteAll(ssl, response, (size_t)length);
 }
 
+/**
+  * @brief Send response headers only, reporting the Content-Length the
+  *        equivalent GET body would carry, per HTTP HEAD semantics.
+  */
+static int apiService_RespondHeadersOnly(
+  mbedtls_ssl_context* ssl,
+  int status,
+  const char* reason,
+  const char* json
+) {
+  char response[API_SERVICE_RESPONSE_SIZE];
+  int length = snprintf(
+    response,
+    sizeof(response),
+    "HTTP/1.1 %d %s\r\n"
+    "Content-Type: application/json\r\n"
+    "Content-Length: %u\r\n"
+    "Connection: close\r\n"
+    "Cache-Control: no-store\r\n\r\n",
+    status,
+    reason,
+    (unsigned int)strlen(json)
+  );
+  if ((length <= 0) || ((size_t)length >= sizeof(response)))
+    return MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL;
+  return apiService_WriteAll(ssl, response, (size_t)length);
+}
+
 static int apiService_Error(
   mbedtls_ssl_context* ssl,
   int status,
@@ -543,7 +571,8 @@ static int apiService_Dispatch(
   mbedtls_ssl_context* ssl,
   const ApiService_RequestTypeDef* request
 ) {
-  if ((strcmp(request->method, "GET") == 0)
+  if (((strcmp(request->method, "GET") == 0)
+        || (strcmp(request->method, "HEAD") == 0))
       && (strcmp(request->path, "/health") == 0)) {
     uint8_t networkHealthy = NetworkService_IsReady();
     uint8_t timeHealthy = TimeService_IsSynchronized();
@@ -562,6 +591,13 @@ static int apiService_Dispatch(
       timeHealthy != 0U ? "true" : "false",
       flashHealthy != 0U ? "true" : "false"
     );
+    if (strcmp(request->method, "HEAD") == 0)
+      return apiService_RespondHeadersOnly(
+        ssl,
+        healthy != 0U ? 200 : 503,
+        healthy != 0U ? "OK" : "Service Unavailable",
+        json
+      );
     return apiService_Respond(
       ssl,
       healthy != 0U ? 200 : 503,
