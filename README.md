@@ -8,8 +8,9 @@ the F767 memory layout.
 The port contains STM32F767 clock and MPU setup, FreeRTOS, a native lwIP OS
 adaptation, Ethernet/LAN8742 networking with DHCP and static fallback, W25Q64
 NOR Flash access, a heartbeat service, SNTP time synchronization, periodic
-authenticated HTTPS resource checks, and an authenticated HTTPS management
-API. Sensors and alarms remain to be ported and verified on this MCU.
+authenticated HTTPS resource checks, an audible buzzer alert on check failure,
+and an authenticated HTTPS management API. Sensors and alarms remain to be
+ported and verified on this MCU.
 
 Project documentation:
 
@@ -34,6 +35,7 @@ Project documentation:
 - Mbed TLS 3.6.7 with hardware-RNG entropy and TLS 1.3-only policy
 - persistent HTTPS resource configuration and wear-aware result log
 - periodic authenticated HTTP `HEAD` checks
+- TIM2/PA3 buzzer alert on failed resource checks
 - TLS 1.3 management API with bearer-token authentication
 - statically allocated heartbeat task
 - GNU Arm Embedded Makefile build
@@ -92,8 +94,9 @@ ETH DNS: 172.18.10.1
 ## HTTPS health checking
 
 After the network has a usable IPv4 address and SNTP supplies trusted UTC, the
-health-check task checks every enabled resource sequentially. The factory
-configuration contains one resource:
+health-check task prints the synchronized UTC time once, then checks every
+enabled resource sequentially. The factory configuration contains one
+resource:
 
 ```text
 https://pgw.intraclear.com/
@@ -107,6 +110,7 @@ returns HTTP status `200`; redirects and all other statuses are failures.
 Successful output has this form:
 
 ```text
+RTC: 2026-08-03T09:15:42Z
 HTTPS check: https://pgw.intraclear.com/
 TLS: TLSv1.3, <cipher suite>, certificate valid
 HTTP HEAD: 200, <elapsed> ms
@@ -142,6 +146,18 @@ sectors 7 and 8 from the top. Trust anchors use two three-sector banks in
 sectors 13 through 18. The previous two-sector banks in sectors 9 through 12
 remain reserved so existing anchors can be migrated on first boot. Persistent
 allocations must not be reordered without a migration.
+
+## Buzzer alert
+
+A passive buzzer on `PA3`/`TIM2_CH4` (connector `CN8/A0`) sounds a bounded
+three-beep pattern whenever a resource check fails; successful checks stay
+silent. A single short tone plays once at startup, so wiring can be verified
+without waiting for a failure. The buzzer task serializes repeated alerts
+through a one-entry static queue: a pattern already queued or playing absorbs
+further failures instead of queuing a backlog. TIM2's counter and channel
+output stay disabled whenever no tone is playing, and `PA3` is held as a plain
+low output outside an active tone, so the transistor base is never left
+floating.
 
 ## Management API
 

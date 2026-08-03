@@ -22,6 +22,7 @@
 
 #include "FreeRTOS.h"
 #include "api_service.h"
+#include "buzzer_service.h"
 #include "health_check_config.h"
 #include "health_check_log.h"
 #include "common.h"
@@ -34,6 +35,7 @@
 #include "tls_trust_store.h"
 
 #include <stdio.h>
+#include <time.h>
 
 #define HEALTH_CHECK_TASK_STACK_DEPTH 2048U
 #define HEALTH_CHECK_WAIT_MS          1000U
@@ -41,6 +43,35 @@
 
 static StaticTask_t healthCheckTaskControlBlock;
 static StackType_t healthCheckTaskStack[HEALTH_CHECK_TASK_STACK_DEPTH];
+
+/**
+  * @brief Print the synchronized UTC time ahead of one check iteration.
+  * @note Called only while TimeService_IsSynchronized() is true, so a
+  *       conversion failure here indicates an internal RTC/library fault
+  *       rather than a missing synchronization.
+  */
+static void healthCheckService_PrintRtc(void) {
+  uint32_t unixTime;
+  if (TimeService_GetUnixTime(&unixTime) != HEALTH_CHECK_STATUS_OK) {
+    Common_Printf("RTC: unavailable\r\n");
+    return;
+  }
+  time_t timestamp = (time_t)unixTime;
+  struct tm utc;
+  if (gmtime_r(&timestamp, &utc) == NULL) {
+    Common_Printf("RTC: conversion failed\r\n");
+    return;
+  }
+  Common_Printf(
+    "RTC: %04d-%02d-%02dT%02d:%02d:%02dZ\r\n",
+    utc.tm_year + 1900,
+    utc.tm_mon + 1,
+    utc.tm_mday,
+    utc.tm_hour,
+    utc.tm_min,
+    utc.tm_sec
+  );
+}
 
 /**
   * @brief Run one check against a configured resource and record the result.
@@ -85,6 +116,8 @@ static void healthCheckService_CheckResource(
   Common_Printf(
     "Resource health: %s\r\n", resourceHealthy != 0U ? "OK" : "FAILED"
   );
+  if (resourceHealthy == 0U)
+    BuzzerService_Alert();
 
   (void)HealthCheckLog_Append(index, &result);
 }
@@ -107,6 +140,8 @@ static void healthCheckService_Task(void* argument) {
       vTaskDelay(pdMS_TO_TICKS(HEALTH_CHECK_WAIT_MS));
       continue;
     }
+
+    healthCheckService_PrintRtc();
 
     HealthCheckConfig_ResourceTypeDef resources[
       HEALTH_CHECK_CONFIG_MAX_RESOURCES

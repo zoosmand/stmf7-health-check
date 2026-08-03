@@ -41,6 +41,24 @@ The ST-LINK virtual COM port is connected to USART3 and is the standard
 
 Serial settings are **115200 baud, 8 data bits, no parity, 1 stop bit**.
 
+## Buzzer alert
+
+A passive buzzer is driven through a 2N2222 transistor rather than directly
+from the GPIO:
+
+| Signal | STM32F767 pin | Configuration |
+|--------|---------------|---------------|
+| Buzzer PWM | PA3 | TIM2 channel 4, alternate function 1, exposed at `CN8/A0` |
+
+The MCU pin drives the transistor base through a series resistor; the buzzer
+itself is powered through the transistor's collector/emitter path, never by
+the GPIO pin directly. TIM2 channel 4 produces a fixed 2.5 kHz square wave at
+roughly 50% duty. Outside an active tone, `PA3` is reconfigured as a plain low
+GPIO output and TIM2's counter and channel output are both disabled, because
+TIM2 has no output idle-state control (that feature exists only on
+advanced-control timers) and the pin state while the channel is merely
+disabled is otherwise unspecified.
+
 ## Ethernet identity
 
 The firmware derives the Ethernet MAC address from the STM32F767's factory

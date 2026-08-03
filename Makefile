@@ -45,12 +45,14 @@ Core/Src/network_interface.c \
 Core/Src/stm32f7xx_it.c \
 Core/Src/syscalls.c \
 Core/Src/system.c \
+Periph/Src/buzzer.c \
 Periph/Src/gpio.c \
 Periph/Src/spi.c \
 Periph/Src/w25q64.c \
 Srv/Src/heart_beat.c \
 Srv/Src/api_service.c \
 Srv/Src/auth_service.c \
+Srv/Src/buzzer_service.c \
 Srv/Src/health_check_config.c \
 Srv/Src/health_check_log.c \
 Srv/Src/health_check_service.c \

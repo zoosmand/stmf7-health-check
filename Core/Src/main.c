@@ -55,6 +55,12 @@ int main(void) {
     System_ErrorHandler();
   Common_Printf("Startup: heartbeat service ready.\n");
 
+  Common_Printf("Startup: initializing buzzer output...\n");
+  Buzzer_Init();
+  if (BuzzerService_Init() != pdPASS)
+    System_ErrorHandler();
+  Common_Printf("Startup: buzzer service ready.\n");
+
   if (ethernetStatus == ETHERNET_STATUS_OK) {
     Common_Printf("Startup: creating network service...\n");
     if (NetworkService_Init() != pdPASS)

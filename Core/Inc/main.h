@@ -24,6 +24,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "buzzer.h"
+#include "buzzer_service.h"
 #include "common.h"
 #include "gpio.h"
 #include "heart_beat.h"
