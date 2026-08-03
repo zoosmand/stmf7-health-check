@@ -34,7 +34,9 @@
 #include <string.h>
 
 #define TLS_TRUST_STORE_MAGIC   0x54525354UL
-#define TLS_TRUST_STORE_VERSION 1U
+#define TLS_TRUST_STORE_VERSION 2U
+#define TLS_TRUST_STORE_LEGACY_VERSION 1U
+#define TLS_TRUST_STORE_LEGACY_MAX_PERSISTED 3U
 
 typedef struct {
   uint8_t occupied;
@@ -53,14 +55,33 @@ typedef struct {
   uint32_t crc;
 } TlsTrustStore_SnapshotTypeDef;
 
+typedef struct {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t reserved;
+  uint32_t generation;
+  TlsTrustStore_AnchorTypeDef anchors[
+    TLS_TRUST_STORE_LEGACY_MAX_PERSISTED
+  ];
+  uint32_t crc;
+} TlsTrustStore_LegacySnapshotTypeDef;
+
 _Static_assert(
   sizeof(TlsTrustStore_SnapshotTypeDef)
     <= (FLASH_LAYOUT_TLS_TRUST_STORE_BANK_SECTORS * W25Q64_SECTOR_SIZE),
   "TLS trust store exceeds its Flash bank"
 );
 
+_Static_assert(
+  sizeof(TlsTrustStore_LegacySnapshotTypeDef)
+    <= (FLASH_LAYOUT_TLS_TRUST_STORE_LEGACY_BANK_SECTORS
+      * W25Q64_SECTOR_SIZE),
+  "Legacy TLS trust store exceeds its Flash bank"
+);
+
 static TlsTrustStore_SnapshotTypeDef trustStoreSnapshot;
 static TlsTrustStore_SnapshotTypeDef trustStoreCandidate;
+static TlsTrustStore_LegacySnapshotTypeDef trustStoreLegacyCandidate;
 static uint32_t trustStoreActiveAddress;
 static StaticSemaphore_t trustStoreMutexControlBlock;
 static SemaphoreHandle_t trustStoreMutex;
@@ -138,6 +159,30 @@ static uint8_t tlsTrustStore_IsSnapshotValid(
   return 1U;
 }
 
+static uint8_t tlsTrustStore_IsLegacySnapshotValid(
+  const TlsTrustStore_LegacySnapshotTypeDef* candidate
+) {
+  if ((candidate->magic != TLS_TRUST_STORE_MAGIC)
+      || (candidate->version != TLS_TRUST_STORE_LEGACY_VERSION)
+      || (candidate->crc != tlsTrustStore_Crc(
+        candidate, offsetof(TlsTrustStore_LegacySnapshotTypeDef, crc)
+      ))) {
+    return 0U;
+  }
+  for (uint8_t index = 0U;
+       index < TLS_TRUST_STORE_LEGACY_MAX_PERSISTED;
+       ++index) {
+    const TlsTrustStore_AnchorTypeDef* anchor = &candidate->anchors[index];
+    if ((anchor->occupied != 0U)
+        && ((anchor->derLength == 0U)
+          || (anchor->derLength > TLS_TRUST_STORE_MAX_DER_SIZE)
+          || (memchr(anchor->subject, '\0', sizeof(anchor->subject)) == NULL))) {
+      return 0U;
+    }
+  }
+  return 1U;
+}
+
 static HealthCheck_StatusTypeDef tlsTrustStore_ReadSnapshot(
   uint32_t address,
   TlsTrustStore_SnapshotTypeDef* target
@@ -145,6 +190,26 @@ static HealthCheck_StatusTypeDef tlsTrustStore_ReadSnapshot(
   if (W25Q64_Read(address, target, sizeof(*target)) != W25Q64_STATUS_OK)
     return HEALTH_CHECK_STATUS_ERROR;
   return tlsTrustStore_IsSnapshotValid(target) != 0U ? HEALTH_CHECK_STATUS_OK : HEALTH_CHECK_STATUS_ERROR;
+}
+
+static HealthCheck_StatusTypeDef tlsTrustStore_ReadLegacySnapshot(
+  uint32_t address,
+  TlsTrustStore_LegacySnapshotTypeDef* target
+) {
+  if (W25Q64_Read(address, target, sizeof(*target)) != W25Q64_STATUS_OK)
+    return HEALTH_CHECK_STATUS_ERROR;
+  return tlsTrustStore_IsLegacySnapshotValid(target) != 0U
+    ? HEALTH_CHECK_STATUS_OK
+    : HEALTH_CHECK_STATUS_ERROR;
+}
+
+static void tlsTrustStore_MigrateLegacy(
+  const TlsTrustStore_LegacySnapshotTypeDef* legacy,
+  TlsTrustStore_SnapshotTypeDef* target
+) {
+  memset(target, 0, sizeof(*target));
+  target->generation = legacy->generation;
+  memcpy(target->anchors, legacy->anchors, sizeof(legacy->anchors));
 }
 
 static HealthCheck_StatusTypeDef tlsTrustStore_Save(
@@ -262,6 +327,38 @@ HealthCheck_StatusTypeDef TlsTrustStore_Init(void) {
     trustStoreSnapshot = trustStoreCandidate;
     trustStoreActiveAddress = FLASH_LAYOUT_TLS_TRUST_STORE_BANK_B;
     return HEALTH_CHECK_STATUS_OK;
+  }
+
+  uint8_t legacyValid = 0U;
+  uint32_t legacyGeneration = 0U;
+  if (tlsTrustStore_ReadLegacySnapshot(
+        FLASH_LAYOUT_TLS_TRUST_STORE_LEGACY_BANK_A,
+        &trustStoreLegacyCandidate
+      ) == HEALTH_CHECK_STATUS_OK) {
+    tlsTrustStore_MigrateLegacy(
+      &trustStoreLegacyCandidate, &trustStoreSnapshot
+    );
+    legacyGeneration = trustStoreLegacyCandidate.generation;
+    legacyValid = 1U;
+  }
+  if (tlsTrustStore_ReadLegacySnapshot(
+        FLASH_LAYOUT_TLS_TRUST_STORE_LEGACY_BANK_B,
+        &trustStoreLegacyCandidate
+      ) == HEALTH_CHECK_STATUS_OK) {
+    if ((legacyValid == 0U)
+        || (trustStoreLegacyCandidate.generation >= legacyGeneration)) {
+      tlsTrustStore_MigrateLegacy(
+        &trustStoreLegacyCandidate, &trustStoreSnapshot
+      );
+    }
+    legacyValid = 1U;
+  }
+  if (legacyValid != 0U) {
+    trustStoreCandidate = trustStoreSnapshot;
+    trustStoreActiveAddress = FLASH_LAYOUT_TLS_TRUST_STORE_BANK_B;
+    return tlsTrustStore_CommitCandidate() == TLS_TRUST_STORE_STATUS_OK
+      ? HEALTH_CHECK_STATUS_OK
+      : HEALTH_CHECK_STATUS_ERROR;
   }
 
   memset(&trustStoreCandidate, 0, sizeof(trustStoreCandidate));

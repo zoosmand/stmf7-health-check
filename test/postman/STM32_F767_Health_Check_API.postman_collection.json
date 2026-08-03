@@ -69,6 +69,21 @@
       }
     },
     {
+      "name": "Get RTC time",
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test(\"RTC is synchronized\", () => pm.response.to.have.status(200));",
+        "const body = pm.response.json();",
+        "pm.expect(body.synchronized).to.eql(true);",
+        "pm.expect(body.unix_time).to.be.a(\"number\");",
+        "pm.expect(body.utc).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/);"
+      ]}}],
+      "request": {
+        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/rtc"
+      }
+    },
+    {
       "name": "List users",
       "request": {
         "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
@@ -102,7 +117,9 @@
         "pm.test(\"Configuration returned\", () => pm.response.to.have.status(200));",
         "const body = pm.response.json();",
         "pm.expect(body.period_seconds).to.be.within(60, 1800);",
-        "pm.expect(body.resources).to.be.an(\"array\");"
+        "pm.expect(body.resources).to.be.an(\"array\");",
+        "pm.expect(body.resources.length).to.be.at.most(6);",
+        "body.resources.forEach(resource => pm.expect(resource.index).to.be.within(0, 5));"
       ]}}],
       "request": {
         "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
@@ -130,6 +147,7 @@
         "pm.test(\"Trust anchors returned\", () => pm.response.to.have.status(200));",
         "const anchors = pm.response.json().trust_anchors;",
         "pm.expect(anchors).to.be.an(\"array\");",
+        "pm.expect(anchors.length).to.be.at.most(6);",
         "pm.expect(anchors[0]).to.include({id: 0, factory: true});"
       ]}}],
       "request": {
@@ -214,7 +232,7 @@
         "pm.test(\"Logs returned\", () => pm.response.to.have.status(200));",
         "const logs = pm.response.json().logs;",
         "pm.expect(logs).to.be.an(\"array\");",
-        "pm.expect(logs.length).to.be.at.most(10);"
+        "pm.expect(logs.length).to.be.at.most(50);"
       ]}}],
       "request": {
         "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},

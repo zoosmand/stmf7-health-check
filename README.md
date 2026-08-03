@@ -132,14 +132,16 @@ Resource health: FAILED
 
 `detail` is an lwIP error, a negated socket `errno`, or an Mbed TLS error code,
 depending on the stage. Checks run every 60 seconds by default. Configuration
-supports three resources and periods from 60 through 1800 seconds; the
-management API provides persistent mutation.
+supports six resources and periods from 60 through 1800 seconds; the management
+API provides persistent mutation. The trust store supports six anchors: one
+compiled recovery anchor and five uploaded CA certificates.
 
 Configuration is stored as alternating transactional snapshots in W25Q64
 sectors 3 and 4 from the top of the device. Results use an append-only ring in
-sectors 7 and 8 from the top. Trust anchors use two two-sector banks in sectors
-9 through 12. These allocations match the F407 layout and must not be reordered
-without a migration.
+sectors 7 and 8 from the top. Trust anchors use two three-sector banks in
+sectors 13 through 18. The previous two-sector banks in sectors 9 through 12
+remain reserved so existing anchors can be migrated on first boot. Persistent
+allocations must not be reordered without a migration.
 
 ## Management API
 
@@ -171,6 +173,7 @@ invalidates all sessions.
 | `POST` | `/api/v1/auth/token` | None | Exchange credentials for an access/refresh pair. |
 | `POST` | `/api/v1/auth/refresh` | Refresh token in JSON | Rotate both tokens. |
 | `POST` | `/api/v1/auth/revoke` | Bearer | Revoke the current session. |
+| `GET` | `/api/v1/rtc` | Any bearer | Return synchronized Unix time and UTC date/time. |
 | `GET`, `POST` | `/api/v1/users` | Administrator bearer | List or create users. |
 | `PUT`, `DELETE` | `/api/v1/users/{username}` | Administrator bearer | Update or delete a user. |
 | `PUT` | `/api/v1/tls/certificate` | Administrator bearer | Stage a DER server certificate. |
@@ -178,9 +181,9 @@ invalidates all sessions.
 | `GET`, `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | List, add, or reset CA anchors. |
 | `PUT`, `DELETE` | `/api/v1/trust-anchors/{id}` | Administrator bearer | Replace or delete an anchor. |
 | `GET`, `PUT` | `/api/v1/health-check/config` | Administrator bearer | Read or change the check period. |
-| `POST` | `/api/v1/health-check/resources` | Administrator bearer | Add one of three resources. |
+| `POST` | `/api/v1/health-check/resources` | Administrator bearer | Add one of six resources. |
 | `PUT`, `DELETE` | `/api/v1/health-check/resources/{index}` | Administrator bearer | Update or remove a resource. |
-| `GET` | `/api/v1/health-check/logs` | Any bearer | Return the ten newest results. |
+| `GET` | `/api/v1/health-check/logs` | Any bearer | Return the 50 newest results. |
 
 Passwords must contain 12 through 128 bytes and usernames at most 24 bytes.
 The unauthenticated `/health` endpoint returns HTTP `200` with `status: "ok"`
