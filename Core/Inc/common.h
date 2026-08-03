@@ -55,6 +55,16 @@
 #define GPIO_PULL_UP   0x1UL
 #define GPIO_PULL_DOWN 0x2UL
 
+/* IWDG */
+#define IWDG_KEY_RELOAD      0x0000AAAAUL
+#define IWDG_KEY_ENABLE      0x0000CCCCUL
+#define IWDG_KEY_ACCESS      0x00005555UL
+#define IWDG_PRESCALER_DIV64 0x00000004UL
+/* Reload for a nominal 2.4 s timeout at the 32 kHz LSI / 64 prescaler:
+ * (1199 + 1) * 64 / 32000 Hz = 2.4 s. Actual delay varies with the
+ * uncalibrated LSI tolerance. */
+#define IWDG_RELOAD_COUNTER  0x000004AFUL /* 1199 */
+
 /**
   * @brief Frequencies of the clocks configured by SystemInit().
   * @param systemCoreHz (uint32_t) Cortex-M7 core frequency in hertz.

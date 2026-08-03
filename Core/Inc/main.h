@@ -40,5 +40,6 @@
 #include "tls_platform.h"
 #include "tls_trust_store.h"
 #include "w25q64.h"
+#include "watchdog_service.h"
 
 #endif /* MAIN_H */
