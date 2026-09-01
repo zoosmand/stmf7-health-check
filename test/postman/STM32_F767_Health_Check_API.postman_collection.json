@@ -148,7 +148,7 @@
         "const anchors = pm.response.json().trust_anchors;",
         "pm.expect(anchors).to.be.an(\"array\");",
         "pm.expect(anchors.length).to.be.at.most(6);",
-        "pm.expect(anchors[0]).to.include({id: 0, factory: true});"
+        "anchors.forEach(anchor => pm.expect(anchor.id).to.be.within(1, 6));"
       ]}}],
       "request": {
         "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},

@@ -34,7 +34,9 @@
 #include <string.h>
 
 #define TLS_TRUST_STORE_MAGIC   0x54525354UL
-#define TLS_TRUST_STORE_VERSION 2U
+#define TLS_TRUST_STORE_VERSION 3U
+#define TLS_TRUST_STORE_PREVIOUS_VERSION 2U
+#define TLS_TRUST_STORE_PREVIOUS_MAX_PERSISTED 5U
 #define TLS_TRUST_STORE_LEGACY_VERSION 1U
 #define TLS_TRUST_STORE_LEGACY_MAX_PERSISTED 3U
 
@@ -61,6 +63,17 @@ typedef struct {
   uint16_t reserved;
   uint32_t generation;
   TlsTrustStore_AnchorTypeDef anchors[
+    TLS_TRUST_STORE_PREVIOUS_MAX_PERSISTED
+  ];
+  uint32_t crc;
+} TlsTrustStore_PreviousSnapshotTypeDef;
+
+typedef struct {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t reserved;
+  uint32_t generation;
+  TlsTrustStore_AnchorTypeDef anchors[
     TLS_TRUST_STORE_LEGACY_MAX_PERSISTED
   ];
   uint32_t crc;
@@ -73,6 +86,13 @@ _Static_assert(
 );
 
 _Static_assert(
+  sizeof(TlsTrustStore_PreviousSnapshotTypeDef)
+    <= (FLASH_LAYOUT_TLS_TRUST_STORE_PREVIOUS_BANK_SECTORS
+      * W25Q64_SECTOR_SIZE),
+  "Previous TLS trust store exceeds its Flash bank"
+);
+
+_Static_assert(
   sizeof(TlsTrustStore_LegacySnapshotTypeDef)
     <= (FLASH_LAYOUT_TLS_TRUST_STORE_LEGACY_BANK_SECTORS
       * W25Q64_SECTOR_SIZE),
@@ -80,51 +100,15 @@ _Static_assert(
 );
 
 static TlsTrustStore_SnapshotTypeDef trustStoreSnapshot;
-static TlsTrustStore_SnapshotTypeDef trustStoreCandidate;
-static TlsTrustStore_LegacySnapshotTypeDef trustStoreLegacyCandidate;
+static union {
+  TlsTrustStore_SnapshotTypeDef current;
+  TlsTrustStore_PreviousSnapshotTypeDef previous;
+  TlsTrustStore_LegacySnapshotTypeDef legacy;
+} trustStoreWorkspace;
+#define trustStoreCandidate trustStoreWorkspace.current
 static uint32_t trustStoreActiveAddress;
 static StaticSemaphore_t trustStoreMutexControlBlock;
 static SemaphoreHandle_t trustStoreMutex;
-
-static const char tlsTrustStore_FactorySubject[] =
-  "CN=USERTrust RSA Certification Authority,O=The USERTRUST Network";
-
-/* USERTrust RSA Certification Authority, valid until 18 January 2038. */
-const char tlsTrustStore_UserTrustRsa[] =
-  "-----BEGIN CERTIFICATE-----\n"
-  "MIIF3jCCA8agAwIBAgIQAf1tMPyjylGoG7xkDjUDLTANBgkqhkiG9w0BAQwFADCB\n"
-  "iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl\n"
-  "cnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV\n"
-  "BAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTAw\n"
-  "MjAxMDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBiDELMAkGA1UEBhMCVVMxEzARBgNV\n"
-  "BAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVU\n"
-  "aGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMTJVVTRVJUcnVzdCBSU0EgQ2Vy\n"
-  "dGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIK\n"
-  "AoICAQCAEmUXNg7D2wiz0KxXDXbtzSfTTK1Qg2HiqiBNCS1kCdzOiZ/MPans9s/B\n"
-  "3PHTsdZ7NygRK0faOca8Ohm0X6a9fZ2jY0K2dvKpOyuR+OJv0OwWIJAJPuLodMkY\n"
-  "tJHUYmTbf6MG8YgYapAiPLz+E/CHFHv25B+O1ORRxhFnRghRy4YUVD+8M/5+bJz/\n"
-  "Fp0YvVGONaanZshyZ9shZrHUm3gDwFA66Mzw3LyeTP6vBZY1H1dat//O+T23LLb2\n"
-  "VN3I5xI6Ta5MirdcmrS3ID3KfyI0rn47aGYBROcBTkZTmzNg95S+UzeQc0PzMsNT\n"
-  "79uq/nROacdrjGCT3sTHDN/hMq7MkztReJVni+49Vv4M0GkPGw/zJSZrM233bkf6\n"
-  "c0Plfg6lZrEpfDKEY1WJxA3Bk1QwGROs0303p+tdOmw1XNtB1xLaqUkL39iAigmT\n"
-  "Yo61Zs8liM2EuLE/pDkP2QKe6xJMlXzzawWpXhaDzLhn4ugTncxbgtNMs+1b/97l\n"
-  "c6wjOy0AvzVVdAlJ2ElYGn+SNuZRkg7zJn0cTRe8yexDJtC/QV9AqURE9JnnV4ee\n"
-  "UB9XVKg+/XRjL7FQZQnmWEIuQxpMtPAlR1n6BB6T1CZGSlCBst6+eLf8ZxXhyVeE\n"
-  "Hg9j1uliutZfVS7qXMYoCAQlObgOK6nyTJccBz8NUvXt7y+CDwIDAQABo0IwQDAd\n"
-  "BgNVHQ4EFgQUU3m/WqorSs9UgOHYm8Cd8rIDZsswDgYDVR0PAQH/BAQDAgEGMA8G\n"
-  "A1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQEMBQADggIBAFzUfA3P9wF9QZllDHPF\n"
-  "Up/L+M+ZBn8b2kMVn54CVVeWFPFSPCeHlCjtHzoBN6J2/FNQwISbxmtOuowhT6KO\n"
-  "VWKR82kV2LyI48SqC/3vqOlLVSoGIG1VeCkZ7l8wXEskEVX/JJpuXior7gtNn3/3\n"
-  "ATiUFJVDBwn7YKnuHKsSjKCaXqeYalltiz8I+8jRRa8YFWSQEg9zKC7F4iRO/Fjs\n"
-  "8PRF/iKz6y+O0tlFYQXBl2+odnKPi4w2r78NBc5xjeambx9spnFixdjQg3IM8WcR\n"
-  "iQycE0xyNN+81XHfqnHd4blsjDwSXWXavVcStkNr/+XeTWYRUc+ZruwXtuhxkYze\n"
-  "Sf7dNXGiFSeUHM9h4ya7b6NnJSFd5t0dCy5oGzuCr+yDZ4XUmFF0sbmZgIn/f3gZ\n"
-  "XHlKYC6SQK5MNyosycdiyA5d9zZbyuAlJQG03RoHnHcAP9Dc1ew91Pq7P8yF1m9/\n"
-  "qS3fuQL39ZeatTXaw2ewh0qpKJ4jjv9cJ2vhsE/zB+4ALtRZh8tSQZXq9EfX7mRB\n"
-  "VXyNWQKV3WKdwrnuWih0hKWbt5DHDAff9Yk2dDLWKMGwsAvgnEzDHNb842m1R0aB\n"
-  "L6KCq9NjRHDEjf8tM7qtj3u1cIiuPhnPQCjY/MiQu12ZIvVS5ljFH4gxQ+6IHdfG\n"
-  "jjxDah2nGN59PRbxYvnKkKj9\n"
-  "-----END CERTIFICATE-----\n";
 
 static uint32_t tlsTrustStore_Crc(const void* data, size_t length) {
   const uint8_t* bytes = data;
@@ -183,6 +167,30 @@ static uint8_t tlsTrustStore_IsLegacySnapshotValid(
   return 1U;
 }
 
+static uint8_t tlsTrustStore_IsPreviousSnapshotValid(
+  const TlsTrustStore_PreviousSnapshotTypeDef* candidate
+) {
+  if ((candidate->magic != TLS_TRUST_STORE_MAGIC)
+      || (candidate->version != TLS_TRUST_STORE_PREVIOUS_VERSION)
+      || (candidate->crc != tlsTrustStore_Crc(
+        candidate, offsetof(TlsTrustStore_PreviousSnapshotTypeDef, crc)
+      ))) {
+    return 0U;
+  }
+  for (uint8_t index = 0U;
+       index < TLS_TRUST_STORE_PREVIOUS_MAX_PERSISTED;
+       ++index) {
+    const TlsTrustStore_AnchorTypeDef* anchor = &candidate->anchors[index];
+    if ((anchor->occupied != 0U)
+        && ((anchor->derLength == 0U)
+          || (anchor->derLength > TLS_TRUST_STORE_MAX_DER_SIZE)
+          || (memchr(anchor->subject, '\0', sizeof(anchor->subject)) == NULL))) {
+      return 0U;
+    }
+  }
+  return 1U;
+}
+
 static HealthCheck_StatusTypeDef tlsTrustStore_ReadSnapshot(
   uint32_t address,
   TlsTrustStore_SnapshotTypeDef* target
@@ -201,6 +209,26 @@ static HealthCheck_StatusTypeDef tlsTrustStore_ReadLegacySnapshot(
   return tlsTrustStore_IsLegacySnapshotValid(target) != 0U
     ? HEALTH_CHECK_STATUS_OK
     : HEALTH_CHECK_STATUS_ERROR;
+}
+
+static HealthCheck_StatusTypeDef tlsTrustStore_ReadPreviousSnapshot(
+  uint32_t address,
+  TlsTrustStore_PreviousSnapshotTypeDef* target
+) {
+  if (W25Q64_Read(address, target, sizeof(*target)) != W25Q64_STATUS_OK)
+    return HEALTH_CHECK_STATUS_ERROR;
+  return tlsTrustStore_IsPreviousSnapshotValid(target) != 0U
+    ? HEALTH_CHECK_STATUS_OK
+    : HEALTH_CHECK_STATUS_ERROR;
+}
+
+static void tlsTrustStore_MigratePrevious(
+  const TlsTrustStore_PreviousSnapshotTypeDef* previous,
+  TlsTrustStore_SnapshotTypeDef* target
+) {
+  memset(target, 0, sizeof(*target));
+  target->generation = previous->generation;
+  memcpy(target->anchors, previous->anchors, sizeof(previous->anchors));
 }
 
 static void tlsTrustStore_MigrateLegacy(
@@ -329,26 +357,58 @@ HealthCheck_StatusTypeDef TlsTrustStore_Init(void) {
     return HEALTH_CHECK_STATUS_OK;
   }
 
+  uint8_t previousValid = 0U;
+  uint32_t previousGeneration = 0U;
+  if (tlsTrustStore_ReadPreviousSnapshot(
+        FLASH_LAYOUT_TLS_TRUST_STORE_PREVIOUS_BANK_A,
+        &trustStoreWorkspace.previous
+      ) == HEALTH_CHECK_STATUS_OK) {
+    previousGeneration = trustStoreWorkspace.previous.generation;
+    tlsTrustStore_MigratePrevious(
+      &trustStoreWorkspace.previous, &trustStoreSnapshot
+    );
+    previousValid = 1U;
+  }
+  if (tlsTrustStore_ReadPreviousSnapshot(
+        FLASH_LAYOUT_TLS_TRUST_STORE_PREVIOUS_BANK_B,
+        &trustStoreWorkspace.previous
+      ) == HEALTH_CHECK_STATUS_OK) {
+    if ((previousValid == 0U)
+        || (trustStoreWorkspace.previous.generation >= previousGeneration)) {
+      tlsTrustStore_MigratePrevious(
+        &trustStoreWorkspace.previous, &trustStoreSnapshot
+      );
+    }
+    previousValid = 1U;
+  }
+  if (previousValid != 0U) {
+    trustStoreCandidate = trustStoreSnapshot;
+    trustStoreActiveAddress = FLASH_LAYOUT_TLS_TRUST_STORE_BANK_A;
+    return tlsTrustStore_CommitCandidate() == TLS_TRUST_STORE_STATUS_OK
+      ? HEALTH_CHECK_STATUS_OK
+      : HEALTH_CHECK_STATUS_ERROR;
+  }
+
   uint8_t legacyValid = 0U;
   uint32_t legacyGeneration = 0U;
   if (tlsTrustStore_ReadLegacySnapshot(
         FLASH_LAYOUT_TLS_TRUST_STORE_LEGACY_BANK_A,
-        &trustStoreLegacyCandidate
+        &trustStoreWorkspace.legacy
       ) == HEALTH_CHECK_STATUS_OK) {
     tlsTrustStore_MigrateLegacy(
-      &trustStoreLegacyCandidate, &trustStoreSnapshot
+      &trustStoreWorkspace.legacy, &trustStoreSnapshot
     );
-    legacyGeneration = trustStoreLegacyCandidate.generation;
+    legacyGeneration = trustStoreWorkspace.legacy.generation;
     legacyValid = 1U;
   }
   if (tlsTrustStore_ReadLegacySnapshot(
         FLASH_LAYOUT_TLS_TRUST_STORE_LEGACY_BANK_B,
-        &trustStoreLegacyCandidate
+        &trustStoreWorkspace.legacy
       ) == HEALTH_CHECK_STATUS_OK) {
     if ((legacyValid == 0U)
-        || (trustStoreLegacyCandidate.generation >= legacyGeneration)) {
+        || (trustStoreWorkspace.legacy.generation >= legacyGeneration)) {
       tlsTrustStore_MigrateLegacy(
-        &trustStoreLegacyCandidate, &trustStoreSnapshot
+        &trustStoreWorkspace.legacy, &trustStoreSnapshot
       );
     }
     legacyValid = 1U;
@@ -369,9 +429,9 @@ HealthCheck_StatusTypeDef TlsTrustStore_Init(void) {
 }
 
 uint8_t TlsTrustStore_Exists(uint8_t id) {
-  if (id == TLS_TRUST_STORE_FACTORY_ID)
-    return 1U;
-  if ((id > TLS_TRUST_STORE_MAX_PERSISTED) || (trustStoreMutex == NULL))
+  if ((id < TLS_TRUST_STORE_MIN_ID)
+      || (id > TLS_TRUST_STORE_MAX_PERSISTED)
+      || (trustStoreMutex == NULL))
     return 0U;
   uint8_t exists = 0U;
   if (xSemaphoreTake(trustStoreMutex, portMAX_DELAY) == pdTRUE) {
@@ -388,16 +448,6 @@ size_t TlsTrustStore_List(
   if ((anchors == NULL) || (capacity == 0U) || (trustStoreMutex == NULL))
     return 0U;
   size_t count = 0U;
-  anchors[count].id = TLS_TRUST_STORE_FACTORY_ID;
-  anchors[count].factory = 1U;
-  anchors[count].derLength = 0U;
-  (void)strncpy(
-    anchors[count].subject,
-    tlsTrustStore_FactorySubject,
-    sizeof(anchors[count].subject) - 1U
-  );
-  anchors[count].subject[sizeof(anchors[count].subject) - 1U] = '\0';
-  ++count;
   if (xSemaphoreTake(trustStoreMutex, portMAX_DELAY) != pdTRUE)
     return count;
   for (uint8_t index = 0U;
@@ -408,7 +458,6 @@ size_t TlsTrustStore_List(
     if (anchor->occupied == 0U)
       continue;
     anchors[count].id = index + 1U;
-    anchors[count].factory = 0U;
     anchors[count].derLength = anchor->derLength;
     (void)strncpy(
       anchors[count].subject,
@@ -428,17 +477,9 @@ TlsTrustStore_StatusTypeDef TlsTrustStore_Parse(
 ) {
   if (certificate == NULL)
     return TLS_TRUST_STORE_STATUS_INVALID_ARGUMENT;
-  if (id == TLS_TRUST_STORE_FACTORY_ID) {
-    int result = mbedtls_x509_crt_parse(
-      certificate,
-      (const uint8_t*)tlsTrustStore_UserTrustRsa,
-      strlen(tlsTrustStore_UserTrustRsa) + 1U
-    );
-    return result == 0
-      ? TLS_TRUST_STORE_STATUS_OK
-      : TLS_TRUST_STORE_STATUS_INVALID_CERTIFICATE;
-  }
-  if ((id > TLS_TRUST_STORE_MAX_PERSISTED) || (trustStoreMutex == NULL))
+  if ((id < TLS_TRUST_STORE_MIN_ID)
+      || (id > TLS_TRUST_STORE_MAX_PERSISTED)
+      || (trustStoreMutex == NULL))
     return TLS_TRUST_STORE_STATUS_NOT_FOUND;
   if (xSemaphoreTake(trustStoreMutex, portMAX_DELAY) != pdTRUE)
     return TLS_TRUST_STORE_STATUS_STORAGE_ERROR;
@@ -491,9 +532,9 @@ TlsTrustStore_StatusTypeDef TlsTrustStore_Replace(
   const uint8_t* der,
   size_t length
 ) {
-  if (id == TLS_TRUST_STORE_FACTORY_ID)
-    return TLS_TRUST_STORE_STATUS_FACTORY_PROTECTED;
-  if ((id > TLS_TRUST_STORE_MAX_PERSISTED) || (trustStoreMutex == NULL))
+  if ((id < TLS_TRUST_STORE_MIN_ID)
+      || (id > TLS_TRUST_STORE_MAX_PERSISTED)
+      || (trustStoreMutex == NULL))
     return TLS_TRUST_STORE_STATUS_NOT_FOUND;
   if (xSemaphoreTake(trustStoreMutex, portMAX_DELAY) != pdTRUE)
     return TLS_TRUST_STORE_STATUS_STORAGE_ERROR;
@@ -512,9 +553,9 @@ TlsTrustStore_StatusTypeDef TlsTrustStore_Replace(
 }
 
 TlsTrustStore_StatusTypeDef TlsTrustStore_Delete(uint8_t id) {
-  if (id == TLS_TRUST_STORE_FACTORY_ID)
-    return TLS_TRUST_STORE_STATUS_FACTORY_PROTECTED;
-  if ((id > TLS_TRUST_STORE_MAX_PERSISTED) || (trustStoreMutex == NULL))
+  if ((id < TLS_TRUST_STORE_MIN_ID)
+      || (id > TLS_TRUST_STORE_MAX_PERSISTED)
+      || (trustStoreMutex == NULL))
     return TLS_TRUST_STORE_STATUS_NOT_FOUND;
   if (xSemaphoreTake(trustStoreMutex, portMAX_DELAY) != pdTRUE)
     return TLS_TRUST_STORE_STATUS_STORAGE_ERROR;

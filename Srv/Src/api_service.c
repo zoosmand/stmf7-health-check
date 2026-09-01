@@ -529,10 +529,6 @@ static int apiService_TrustStoreError(
       return apiService_Error(
         ssl, 409, "Conflict", "trust_anchor_limit_reached"
       );
-    case TLS_TRUST_STORE_STATUS_FACTORY_PROTECTED:
-      return apiService_Error(
-        ssl, 403, "Forbidden", "factory_anchor_protected"
-      );
     default:
       return apiService_Error(
         ssl, 500, "Internal Server Error", "storage_error"
@@ -904,11 +900,10 @@ static int apiService_Dispatch(
       int written = snprintf(
         &json[used],
         sizeof(json) - used,
-        "%s{\"id\":%u,\"factory\":%s,\"der_length\":%u,"
+        "%s{\"id\":%u,\"der_length\":%u,"
         "\"subject\":\"",
         index == 0U ? "" : ",",
         (unsigned int)anchors[index].id,
-        anchors[index].factory != 0U ? "true" : "false",
         (unsigned int)anchors[index].derLength
       );
       if ((written <= 0) || ((size_t)written >= (sizeof(json) - used)))
@@ -965,7 +960,7 @@ static int apiService_Dispatch(
     if (status != TLS_TRUST_STORE_STATUS_OK)
       return apiService_TrustStoreError(ssl, status);
     return apiService_Respond(
-      ssl, 200, "OK", "{\"factory_restored\":true}"
+      ssl, 200, "OK", "{\"reset\":true}"
     );
   }
 
@@ -984,7 +979,8 @@ static int apiService_Dispatch(
     const char* idText = request->path + strlen(trustAnchorPrefix);
     char* idEnd;
     long idValue = strtol(idText, &idEnd, 10);
-    if ((idEnd == idText) || (*idEnd != '\0') || (idValue < 0)
+    if ((idEnd == idText) || (*idEnd != '\0')
+        || (idValue < TLS_TRUST_STORE_MIN_ID)
         || (idValue > TLS_TRUST_STORE_MAX_PERSISTED)) {
       return apiService_Error(
         ssl, 404, "Not Found", "trust_anchor_not_found"
@@ -992,10 +988,6 @@ static int apiService_Dispatch(
     }
     uint8_t id = (uint8_t)idValue;
     if (deletingTrustAnchor != 0U) {
-      if (id == TLS_TRUST_STORE_FACTORY_ID)
-        return apiService_TrustStoreError(
-          ssl, TLS_TRUST_STORE_STATUS_FACTORY_PROTECTED
-        );
       if (HealthCheckConfig_IsTrustAnchorInUse(id) != 0U)
         return apiService_Error(
           ssl, 409, "Conflict", "trust_anchor_in_use"
@@ -1097,7 +1089,7 @@ static int apiService_Dispatch(
     char host[HEALTH_CHECK_CONFIG_HOST_SIZE];
     char path[HEALTH_CHECK_CONFIG_PATH_SIZE];
     uint32_t portValue;
-    uint32_t trustAnchorValue = TLS_TRUST_STORE_FACTORY_ID;
+    uint32_t trustAnchorValue;
     uint8_t enabled = 1U;
     if ((apiService_JsonString(
           request->body, "host", host, sizeof(host)
@@ -1107,16 +1099,17 @@ static int apiService_Dispatch(
         ) == 0U)
         || (apiService_JsonNumber(
           request->body, "port", &portValue
+        ) == 0U)
+        || (apiService_JsonNumber(
+          request->body, "trust_anchor_id", &trustAnchorValue
         ) == 0U)) {
       return apiService_Error(ssl, 400, "Bad Request", "invalid_request");
     }
     (void)apiService_JsonBoolean(request->body, "enabled", &enabled);
-    (void)apiService_JsonNumber(
-      request->body, "trust_anchor_id", &trustAnchorValue
-    );
     if ((portValue == 0U) || (portValue > 65535U))
       return apiService_Error(ssl, 400, "Bad Request", "invalid_port");
-    if ((trustAnchorValue > TLS_TRUST_STORE_MAX_PERSISTED)
+    if ((trustAnchorValue < TLS_TRUST_STORE_MIN_ID)
+        || (trustAnchorValue > TLS_TRUST_STORE_MAX_PERSISTED)
         || (TlsTrustStore_Exists((uint8_t)trustAnchorValue) == 0U)) {
       return apiService_Error(
         ssl, 400, "Bad Request", "invalid_trust_anchor"
@@ -1212,7 +1205,8 @@ static int apiService_Dispatch(
     );
     if ((portValue == 0U) || (portValue > 65535U))
       return apiService_Error(ssl, 400, "Bad Request", "invalid_port");
-    if ((trustAnchorValue > TLS_TRUST_STORE_MAX_PERSISTED)
+    if ((trustAnchorValue < TLS_TRUST_STORE_MIN_ID)
+        || (trustAnchorValue > TLS_TRUST_STORE_MAX_PERSISTED)
         || (TlsTrustStore_Exists((uint8_t)trustAnchorValue) == 0U)) {
       return apiService_Error(
         ssl, 400, "Bad Request", "invalid_trust_anchor"
