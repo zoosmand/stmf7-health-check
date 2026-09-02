@@ -87,6 +87,15 @@ W25Q64_StatusTypeDef W25Q64_Read(
 W25Q64_StatusTypeDef W25Q64_EraseSector(uint32_t address);
 
 /**
+  * @brief Erase a contiguous, sector-aligned range under one Flash lock.
+  * @param address (uint32_t) First aligned sector address.
+  * @param length (size_t) Nonzero erase length, in whole sectors.
+  * @retval (W25Q64_StatusTypeDef) Result of all sector erase operations.
+  * @note Sectors are erased from the highest address to the lowest address.
+  */
+W25Q64_StatusTypeDef W25Q64_EraseRange(uint32_t address, size_t length);
+
+/**
   * @brief Program bytes while respecting 256-byte page boundaries.
   * @param address (uint32_t) First 24-bit Flash address to program.
   * @param data (const void*) Non-null source containing `length` bytes.

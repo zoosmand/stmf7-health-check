@@ -29,6 +29,14 @@ chip select. Startup performs only a JEDEC identity read and expects
 bounded blocking read, 4 KiB sector erase, and page-aware program operations.
 Access is serialized by a statically allocated FreeRTOS mutex.
 
+## Factory-reset button
+
+The NUCLEO-F767ZI B1 user button uses its default active-high `PC13` connection.
+Firmware configures the pin as an input without an internal pull resistor and
+polls it from a FreeRTOS service. Holding B1 for five seconds initiates factory
+reset; short presses are ignored. This assumes the board's default B1 solder-
+bridge configuration remains unchanged.
+
 ## Diagnostic console
 
 The ST-LINK virtual COM port is connected to USART3 and is the standard

@@ -247,6 +247,9 @@ static HealthCheck_StatusTypeDef tlsTrustStore_Save(
     (trustStoreActiveAddress == FLASH_LAYOUT_TLS_TRUST_STORE_BANK_A)
       ? FLASH_LAYOUT_TLS_TRUST_STORE_BANK_B
       : FLASH_LAYOUT_TLS_TRUST_STORE_BANK_A;
+  /* Per-sector locking is intentional here: the inactive-bank snapshot and
+     generation/CRC validation provide transaction safety, while yielding the
+     Flash mutex between slow erases keeps unrelated services responsive. */
   for (uint8_t sector = 0U;
        sector < FLASH_LAYOUT_TLS_TRUST_STORE_BANK_SECTORS;
        ++sector) {

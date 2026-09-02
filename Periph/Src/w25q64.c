@@ -51,6 +51,7 @@ static W25Q64_StatusTypeDef w25q64_Command(
 );
 static W25Q64_StatusTypeDef w25q64_WriteEnable(void);
 static W25Q64_StatusTypeDef w25q64_WaitReady(uint32_t timeoutMs);
+static W25Q64_StatusTypeDef w25q64_EraseSectorUnlocked(uint32_t address);
 static uint8_t w25q64_IsRangeValid(uint32_t address, size_t length);
 
 /**
@@ -145,6 +146,37 @@ W25Q64_StatusTypeDef W25Q64_EraseSector(uint32_t address) {
     return W25Q64_STATUS_IO_ERROR;
   }
 
+  W25Q64_StatusTypeDef status = w25q64_EraseSectorUnlocked(address);
+  (void)xSemaphoreGive(flashMutex);
+  return status;
+}
+
+W25Q64_StatusTypeDef W25Q64_EraseRange(uint32_t address, size_t length) {
+  if ((length == 0U)
+      || ((address % W25Q64_SECTOR_SIZE) != 0U)
+      || ((length % W25Q64_SECTOR_SIZE) != 0U)
+      || (w25q64_IsRangeValid(address, length) == 0U)) {
+    return W25Q64_STATUS_INVALID_ARGUMENT;
+  }
+  if ((flashMutex == NULL)
+      || (xSemaphoreTake(flashMutex, portMAX_DELAY) != pdTRUE)) {
+    return W25Q64_STATUS_IO_ERROR;
+  }
+
+  W25Q64_StatusTypeDef status = W25Q64_STATUS_OK;
+  const uint32_t firstAddress = address;
+  uint32_t currentAddress = address + (uint32_t)length - W25Q64_SECTOR_SIZE;
+  while (status == W25Q64_STATUS_OK) {
+    status = w25q64_EraseSectorUnlocked(currentAddress);
+    if ((status != W25Q64_STATUS_OK) || (currentAddress == firstAddress))
+      break;
+    currentAddress -= W25Q64_SECTOR_SIZE;
+  }
+  (void)xSemaphoreGive(flashMutex);
+  return status;
+}
+
+static W25Q64_StatusTypeDef w25q64_EraseSectorUnlocked(uint32_t address) {
   W25Q64_StatusTypeDef status = w25q64_WriteEnable();
   uint8_t command[4] = {
     W25Q64_COMMAND_SECTOR_ERASE,
@@ -156,7 +188,6 @@ W25Q64_StatusTypeDef W25Q64_EraseSector(uint32_t address) {
     status = w25q64_Command(command, sizeof(command), NULL, 0U);
   if (status == W25Q64_STATUS_OK)
     status = w25q64_WaitReady(W25Q64_ERASE_TIMEOUT_MS);
-  (void)xSemaphoreGive(flashMutex);
   return status;
 }
 

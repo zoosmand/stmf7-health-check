@@ -31,6 +31,14 @@
 #define BUZZER_ALERT_TONE_MS    120U
 #define BUZZER_ALERT_GAP_MS     120U
 #define BUZZER_ALERT_BEEP_COUNT 3U
+#define BUZZER_RESET_TONE_MS    350U
+#define BUZZER_RESET_GAP_MS     150U
+#define BUZZER_FAILURE_TONE_MS  70U
+#define BUZZER_FAILURE_GAP_MS   70U
+#define BUZZER_FAILURE_COUNT    5U
+#define BUZZER_EVENT_ALERT      1U
+#define BUZZER_EVENT_RESET      2U
+#define BUZZER_EVENT_FAILURE    3U
 
 static StaticTask_t buzzerTaskControlBlock;
 static StackType_t buzzerTaskStack[BUZZER_STACK_WORDS];
@@ -66,8 +74,22 @@ BaseType_t BuzzerService_Init(void) {
 void BuzzerService_Alert(void) {
   if (buzzerQueue == NULL)
     return;
-  uint8_t event = 1U;
+  uint8_t event = BUZZER_EVENT_ALERT;
   (void)xQueueSend(buzzerQueue, &event, 0U);
+}
+
+void BuzzerService_FactoryResetSignal(void) {
+  if (buzzerQueue == NULL)
+    return;
+  uint8_t event = BUZZER_EVENT_RESET;
+  (void)xQueueOverwrite(buzzerQueue, &event);
+}
+
+void BuzzerService_FactoryResetFailure(void) {
+  if (buzzerQueue == NULL)
+    return;
+  uint8_t event = BUZZER_EVENT_FAILURE;
+  (void)xQueueOverwrite(buzzerQueue, &event);
 }
 
 /**
@@ -83,6 +105,20 @@ static void buzzerService_Task(void* argument) {
     uint8_t event;
     if (xQueueReceive(buzzerQueue, &event, portMAX_DELAY) != pdTRUE)
       continue;
+    if (event == BUZZER_EVENT_RESET) {
+      buzzerService_Beep(BUZZER_RESET_TONE_MS);
+      vTaskDelay(pdMS_TO_TICKS(BUZZER_RESET_GAP_MS));
+      buzzerService_Beep(BUZZER_RESET_TONE_MS);
+      continue;
+    }
+    if (event == BUZZER_EVENT_FAILURE) {
+      for (uint32_t index = 0U; index < BUZZER_FAILURE_COUNT; index++) {
+        buzzerService_Beep(BUZZER_FAILURE_TONE_MS);
+        if ((index + 1U) < BUZZER_FAILURE_COUNT)
+          vTaskDelay(pdMS_TO_TICKS(BUZZER_FAILURE_GAP_MS));
+      }
+      continue;
+    }
     for (uint32_t index = 0U; index < BUZZER_ALERT_BEEP_COUNT; index++) {
       buzzerService_Beep(BUZZER_ALERT_TONE_MS);
       if ((index + 1U) < BUZZER_ALERT_BEEP_COUNT)
