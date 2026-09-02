@@ -143,10 +143,4 @@ HealthCheckConfig_StatusTypeDef HealthCheckConfig_DeleteResource(
   */
 uint8_t HealthCheckConfig_IsTrustAnchorInUse(uint8_t trustAnchorId);
 
-/**
-  * @brief Delete all configured resources before clearing the trust store.
-  * @retval (HealthCheckConfig_StatusTypeDef) Persistence result.
-  */
-HealthCheckConfig_StatusTypeDef HealthCheckConfig_ResetTrustAnchors(void);
-
 #endif /* HEALTH_CHECK_CONFIG_H */

@@ -101,3 +101,5 @@ curl -sk "$DEVICE_URL/api/v1/health-check/logs" \
 Checks run every 60 seconds by default. Configuration and results persist in
 the W25Q64 NOR Flash across resets.
 
+Delete configured resources before resetting the complete trust store. The API
+returns HTTP `409` if any resource still references an anchor.

@@ -141,7 +141,7 @@ certificates; firmware contains no outbound factory trust anchor.
 Configuration is stored as alternating transactional snapshots in W25Q64
 sectors 3 and 4 from the top of the device. Results use an append-only ring in
 sectors 7 and 8 from the top. Trust anchors use two four-sector banks in sectors
-21 through 28. Previous three-sector and two-sector bank locations remain
+19 through 26. Previous three-sector and two-sector bank locations remain
 reserved for migration. Persistent allocations must not be reordered without
 a migration.
 
@@ -193,7 +193,7 @@ invalidates all sessions.
 | `PUT` | `/api/v1/tls/certificate` | Administrator bearer | Stage a DER server certificate. |
 | `PUT` | `/api/v1/tls/private-key` | Administrator bearer | Stage a DER server private key. |
 | `GET` | `/api/v1/trust-anchors` | Any bearer | List CA anchors. |
-| `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | Add or reset CA anchors. |
+| `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | Add or reset CA anchors; reset requires no resources. |
 | `PUT`, `DELETE` | `/api/v1/trust-anchors/{id}` | Administrator bearer | Replace or delete an anchor. |
 | `GET` | `/api/v1/health-check/config` | Any bearer | Read the check period and resources. |
 | `PUT` | `/api/v1/health-check/config` | Administrator bearer | Change the check period. |

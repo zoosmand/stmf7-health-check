@@ -481,16 +481,3 @@ uint8_t HealthCheckConfig_IsTrustAnchorInUse(uint8_t trustAnchorId) {
   (void)xSemaphoreGive(configMutex);
   return inUse;
 }
-
-HealthCheckConfig_StatusTypeDef HealthCheckConfig_ResetTrustAnchors(void) {
-  if (xSemaphoreTake(configMutex, portMAX_DELAY) != pdTRUE)
-    return HEALTH_CHECK_CONFIG_STATUS_STORAGE_ERROR;
-  HealthCheckConfig_SnapshotTypeDef candidate = snapshot;
-  memset(candidate.resources, 0, sizeof(candidate.resources));
-  HealthCheckConfig_StatusTypeDef status =
-    (healthCheckConfig_Save(&candidate) == HEALTH_CHECK_STATUS_OK)
-      ? HEALTH_CHECK_CONFIG_STATUS_OK
-      : HEALTH_CHECK_CONFIG_STATUS_STORAGE_ERROR;
-  (void)xSemaphoreGive(configMutex);
-  return status;
-}

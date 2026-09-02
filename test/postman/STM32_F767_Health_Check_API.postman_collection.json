@@ -213,6 +213,18 @@
       }
     },
     {
+      "name": "Reject reset of in-use trust store",
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.test(\"In-use trust store protected\", () => pm.response.to.have.status(409));",
+        "pm.expect(pm.response.json().error).to.eql(\"trust_anchor_in_use\");"
+      ]}}],
+      "request": {
+        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/v1/trust-anchors"
+      }
+    },
+    {
       "name": "Replace trust anchor (manual file selection may be required)",
       "event": [{"listen": "test", "script": {"exec": [
         "pm.test(\"Trust anchor replaced\", () => pm.response.to.have.status(200));",

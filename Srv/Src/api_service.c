@@ -950,11 +950,14 @@ static int apiService_Dispatch(
       && (strcmp(request->path, "/api/v1/trust-anchors") == 0)) {
     if (principal.role != USER_ROLE_ADMINISTRATOR)
       return apiService_Error(ssl, 403, "Forbidden", "forbidden");
-    if (HealthCheckConfig_ResetTrustAnchors()
-        != HEALTH_CHECK_CONFIG_STATUS_OK) {
-      return apiService_Error(
-        ssl, 500, "Internal Server Error", "storage_error"
-      );
+    for (uint8_t id = TLS_TRUST_STORE_MIN_ID;
+         id <= TLS_TRUST_STORE_MAX_PERSISTED;
+         ++id) {
+      if (HealthCheckConfig_IsTrustAnchorInUse(id) != 0U) {
+        return apiService_Error(
+          ssl, 409, "Conflict", "trust_anchor_in_use"
+        );
+      }
     }
     TlsTrustStore_StatusTypeDef status = TlsTrustStore_Reset();
     if (status != TLS_TRUST_STORE_STATUS_OK)
