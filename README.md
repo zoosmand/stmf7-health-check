@@ -14,6 +14,7 @@ ported and verified on this MCU.
 
 Project documentation:
 
+- [Configure a new device](HOWTO.md)
 - [Porting and operational use cases](USECASES.md)
 - [Development rules](docs/DEVELOPMENT_RULES.md)
 - [Naming conventions](docs/NAMING_CONVENTIONS.md)
@@ -95,12 +96,9 @@ ETH DNS: 172.18.10.1
 
 After the network has a usable IPv4 address and SNTP supplies trusted UTC, the
 health-check task prints the synchronized UTC time once, then checks every
-enabled resource sequentially. The factory configuration contains one
-resource:
-
-```text
-https://pgw.intraclear.com/
-```
+enabled resource sequentially. A fresh device has no resources or trust
+anchors; upload a CA certificate and create a resource through the management
+API before checks can run.
 
 The request uses TLS 1.3 and HTTP `HEAD`. Certificate chain, hostname, and
 validity dates are verified against the resource's selected trust anchor. A
@@ -111,7 +109,7 @@ Successful output has this form:
 
 ```text
 RTC: 2026-08-03T09:15:42Z
-HTTPS check: https://pgw.intraclear.com/
+HTTPS check: https://example.com/
 TLS: TLSv1.3, <cipher suite>, certificate valid
 HTTP HEAD: 200, <elapsed> ms
 Resource health: OK
@@ -137,15 +135,15 @@ Resource health: FAILED
 `detail` is an lwIP error, a negated socket `errno`, or an Mbed TLS error code,
 depending on the stage. Checks run every 60 seconds by default. Configuration
 supports six resources and periods from 60 through 1800 seconds; the management
-API provides persistent mutation. The trust store supports six anchors: one
-compiled recovery anchor and five uploaded CA certificates.
+API provides persistent mutation. The trust store supports six uploaded CA
+certificates; firmware contains no outbound factory trust anchor.
 
 Configuration is stored as alternating transactional snapshots in W25Q64
 sectors 3 and 4 from the top of the device. Results use an append-only ring in
-sectors 7 and 8 from the top. Trust anchors use two three-sector banks in
-sectors 13 through 18. The previous two-sector banks in sectors 9 through 12
-remain reserved so existing anchors can be migrated on first boot. Persistent
-allocations must not be reordered without a migration.
+sectors 7 and 8 from the top. Trust anchors use two four-sector banks in sectors
+19 through 26. Previous three-sector and two-sector bank locations remain
+reserved for migration. Persistent allocations must not be reordered without
+a migration.
 
 ## Buzzer alert
 
@@ -195,7 +193,7 @@ invalidates all sessions.
 | `PUT` | `/api/v1/tls/certificate` | Administrator bearer | Stage a DER server certificate. |
 | `PUT` | `/api/v1/tls/private-key` | Administrator bearer | Stage a DER server private key. |
 | `GET` | `/api/v1/trust-anchors` | Any bearer | List CA anchors. |
-| `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | Add or reset CA anchors. |
+| `POST`, `DELETE` | `/api/v1/trust-anchors` | Administrator bearer | Add or reset CA anchors; reset requires no resources. |
 | `PUT`, `DELETE` | `/api/v1/trust-anchors/{id}` | Administrator bearer | Replace or delete an anchor. |
 | `GET` | `/api/v1/health-check/config` | Any bearer | Read the check period and resources. |
 | `PUT` | `/api/v1/health-check/config` | Administrator bearer | Change the check period. |

@@ -27,12 +27,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define TLS_TRUST_STORE_FACTORY_ID          0U
-#define TLS_TRUST_STORE_MAX_PERSISTED       5U
+#define TLS_TRUST_STORE_MIN_ID              1U
+#define TLS_TRUST_STORE_MAX_PERSISTED       6U
 #define TLS_TRUST_STORE_MAX_DER_SIZE        2048U
 #define TLS_TRUST_STORE_SUBJECT_SIZE        128U
-#define TLS_TRUST_STORE_MAX_ANCHORS \
-  (TLS_TRUST_STORE_MAX_PERSISTED + 1U)
+#define TLS_TRUST_STORE_MAX_ANCHORS         TLS_TRUST_STORE_MAX_PERSISTED
 
 typedef enum {
   TLS_TRUST_STORE_STATUS_OK = 0,
@@ -42,21 +41,17 @@ typedef enum {
   TLS_TRUST_STORE_STATUS_NOT_CA,
   TLS_TRUST_STORE_STATUS_NOT_FOUND,
   TLS_TRUST_STORE_STATUS_FULL,
-  TLS_TRUST_STORE_STATUS_FACTORY_PROTECTED,
   TLS_TRUST_STORE_STATUS_STORAGE_ERROR
 } TlsTrustStore_StatusTypeDef;
 
 /**
   * @brief Public metadata for one trust anchor.
   * @param id (uint8_t) Stable anchor ID used by resource configuration.
-  * @param factory (uint8_t) Nonzero for the compiled recovery anchor.
-  * @param derLength (uint16_t) Encoded certificate size; zero for the factory
-  *        PEM anchor.
+  * @param derLength (uint16_t) Encoded certificate size.
   * @param subject (char[TLS_TRUST_STORE_SUBJECT_SIZE]) X.509 subject name.
   */
 typedef struct {
   uint8_t id;
-  uint8_t factory;
   uint16_t derLength;
   char subject[TLS_TRUST_STORE_SUBJECT_SIZE];
 } TlsTrustStore_InfoTypeDef;
@@ -69,13 +64,13 @@ HealthCheck_StatusTypeDef TlsTrustStore_Init(void);
 
 /**
   * @brief Report whether an anchor ID currently exists.
-  * @param id (uint8_t) Factory ID 0 or a persistent slot ID.
+  * @param id (uint8_t) Persistent slot ID 1 through 6.
   * @retval (uint8_t) Nonzero when the anchor exists.
   */
 uint8_t TlsTrustStore_Exists(uint8_t id);
 
 /**
-  * @brief Copy metadata for all active anchors, factory anchor first.
+  * @brief Copy metadata for all active persistent anchors.
   * @param anchors (TlsTrustStore_InfoTypeDef*) Output array.
   * @param capacity (size_t) Number of available output elements.
   * @retval (size_t) Number of anchors copied.
@@ -114,7 +109,7 @@ TlsTrustStore_StatusTypeDef TlsTrustStore_Add(
 
 /**
   * @brief Replace one persistent trust anchor with a DER CA certificate.
-  * @param id (uint8_t) Persistent ID 1 through 3.
+  * @param id (uint8_t) Persistent ID 1 through 6.
   * @param der (const uint8_t*) DER certificate bytes.
   * @param length (size_t) DER length.
   * @retval (TlsTrustStore_StatusTypeDef) Validation or storage result.
@@ -128,13 +123,13 @@ TlsTrustStore_StatusTypeDef TlsTrustStore_Replace(
 
 /**
   * @brief Delete one persistent trust anchor.
-  * @param id (uint8_t) Persistent ID 1 through 3.
+  * @param id (uint8_t) Persistent ID 1 through 6.
   * @retval (TlsTrustStore_StatusTypeDef) OK or an ID/storage error.
   */
 TlsTrustStore_StatusTypeDef TlsTrustStore_Delete(uint8_t id);
 
 /**
-  * @brief Clear all persistent anchors, retaining factory anchor ID 0.
+  * @brief Clear all persistent anchors.
   * @retval (TlsTrustStore_StatusTypeDef) OK or a storage error.
   */
 TlsTrustStore_StatusTypeDef TlsTrustStore_Reset(void);

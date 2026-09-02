@@ -29,7 +29,8 @@
 #include <string.h>
 
 #define HEALTH_CHECK_CONFIG_MAGIC     0x48434643UL
-#define HEALTH_CHECK_CONFIG_VERSION   3U
+#define HEALTH_CHECK_CONFIG_VERSION   4U
+#define HEALTH_CHECK_CONFIG_FACTORY_VERSION 3U
 #define HEALTH_CHECK_CONFIG_PREVIOUS_VERSION 2U
 #define HEALTH_CHECK_CONFIG_LEGACY_VERSION 1U
 #define HEALTH_CHECK_CONFIG_PREVIOUS_MAX_RESOURCES 3U
@@ -37,9 +38,6 @@
 #define HEALTH_CHECK_CONFIG_SECTOR_B  FLASH_LAYOUT_HEALTH_CHECK_CONFIG_SECTOR_B
 
 #define HEALTH_CHECK_CONFIG_DEFAULT_PERIOD_SECONDS 60U
-#define HEALTH_CHECK_CONFIG_DEFAULT_HOST           "pgw.intraclear.com"
-#define HEALTH_CHECK_CONFIG_DEFAULT_PORT           443U
-#define HEALTH_CHECK_CONFIG_DEFAULT_PATH           "/"
 
 typedef struct {
   uint32_t magic;
@@ -113,6 +111,31 @@ static uint8_t healthCheckConfig_IsValid(
     : 0U;
 }
 
+static uint8_t healthCheckConfig_IsFactoryVersionValid(
+  const HealthCheckConfig_SnapshotTypeDef* candidate
+) {
+  return ((candidate->magic == HEALTH_CHECK_CONFIG_MAGIC)
+      && (candidate->version == HEALTH_CHECK_CONFIG_FACTORY_VERSION)
+      && (candidate->periodSeconds >= HEALTH_CHECK_CONFIG_MIN_PERIOD_SECONDS)
+      && (candidate->periodSeconds <= HEALTH_CHECK_CONFIG_MAX_PERIOD_SECONDS)
+      && (candidate->crc == healthCheckConfig_Crc(
+        candidate, offsetof(HealthCheckConfig_SnapshotTypeDef, crc)
+      )))
+    ? 1U
+    : 0U;
+}
+
+static void healthCheckConfig_RemoveFactoryReferences(
+  HealthCheckConfig_SnapshotTypeDef* target
+) {
+  for (uint8_t index = 0U; index < HEALTH_CHECK_CONFIG_MAX_RESOURCES; ++index) {
+    if ((target->resources[index].occupied != 0U)
+        && (target->resources[index].trustAnchorId == 0U)) {
+      memset(&target->resources[index], 0, sizeof(target->resources[index]));
+    }
+  }
+}
+
 static uint8_t healthCheckConfig_IsLegacyValid(
   const HealthCheckConfig_LegacySnapshotTypeDef* candidate
 ) {
@@ -153,6 +176,7 @@ static void healthCheckConfig_MigratePrevious(
     previous->resources,
     sizeof(previous->resources)
   );
+  healthCheckConfig_RemoveFactoryReferences(target);
 }
 
 static void healthCheckConfig_MigrateLegacy(
@@ -162,24 +186,6 @@ static void healthCheckConfig_MigrateLegacy(
   memset(target, 0, sizeof(*target));
   target->generation = legacy->generation;
   target->periodSeconds = legacy->periodSeconds;
-  for (uint8_t index = 0U;
-       index < HEALTH_CHECK_CONFIG_PREVIOUS_MAX_RESOURCES;
-       ++index) {
-    target->resources[index].occupied = legacy->resources[index].occupied;
-    target->resources[index].enabled = legacy->resources[index].enabled;
-    target->resources[index].trustAnchorId = 0U;
-    target->resources[index].port = legacy->resources[index].port;
-    memcpy(
-      target->resources[index].host,
-      legacy->resources[index].host,
-      sizeof(target->resources[index].host)
-    );
-    memcpy(
-      target->resources[index].path,
-      legacy->resources[index].path,
-      sizeof(target->resources[index].path)
-    );
-  }
 }
 
 static void healthCheckConfig_SetDefault(
@@ -187,19 +193,6 @@ static void healthCheckConfig_SetDefault(
 ) {
   memset(target, 0, sizeof(*target));
   target->periodSeconds = HEALTH_CHECK_CONFIG_DEFAULT_PERIOD_SECONDS;
-  target->resources[0].occupied = 1U;
-  target->resources[0].enabled = 1U;
-  target->resources[0].port = HEALTH_CHECK_CONFIG_DEFAULT_PORT;
-  (void)strncpy(
-    target->resources[0].host,
-    HEALTH_CHECK_CONFIG_DEFAULT_HOST,
-    sizeof(target->resources[0].host) - 1U
-  );
-  (void)strncpy(
-    target->resources[0].path,
-    HEALTH_CHECK_CONFIG_DEFAULT_PATH,
-    sizeof(target->resources[0].path) - 1U
-  );
 }
 
 static HealthCheck_StatusTypeDef healthCheckConfig_Save(
@@ -251,6 +244,24 @@ HealthCheck_StatusTypeDef HealthCheckConfig_Init(void) {
     snapshot = second;
     activeAddress = HEALTH_CHECK_CONFIG_SECTOR_B;
     return HEALTH_CHECK_STATUS_OK;
+  }
+
+  uint8_t factoryFirstValid = (W25Q64_Read(
+    HEALTH_CHECK_CONFIG_SECTOR_A, &first, sizeof(first)
+  ) == W25Q64_STATUS_OK) && healthCheckConfig_IsFactoryVersionValid(&first);
+  uint8_t factorySecondValid = (W25Q64_Read(
+    HEALTH_CHECK_CONFIG_SECTOR_B, &second, sizeof(second)
+  ) == W25Q64_STATUS_OK) && healthCheckConfig_IsFactoryVersionValid(&second);
+  if ((factoryFirstValid != 0U) || (factorySecondValid != 0U)) {
+    const HealthCheckConfig_SnapshotTypeDef* previous =
+      ((factoryFirstValid != 0U) && ((factorySecondValid == 0U)
+        || (first.generation >= second.generation))) ? &first : &second;
+    snapshot = *previous;
+    activeAddress = (previous == &first)
+      ? HEALTH_CHECK_CONFIG_SECTOR_A
+      : HEALTH_CHECK_CONFIG_SECTOR_B;
+    healthCheckConfig_RemoveFactoryReferences(&snapshot);
+    return healthCheckConfig_Save(&snapshot);
   }
 
   static HealthCheckConfig_PreviousSnapshotTypeDef previousFirst;
@@ -347,6 +358,7 @@ HealthCheckConfig_StatusTypeDef HealthCheckConfig_AddResource(
 ) {
   if ((host == NULL) || (host[0] == '\0') || (path == NULL)
       || (path[0] != '/') || (port == 0U)
+      || (trustAnchorId < TLS_TRUST_STORE_MIN_ID)
       || (trustAnchorId > TLS_TRUST_STORE_MAX_PERSISTED)
       || (strlen(host) >= HEALTH_CHECK_CONFIG_HOST_SIZE)
       || (strlen(path) >= HEALTH_CHECK_CONFIG_PATH_SIZE))
@@ -399,6 +411,7 @@ HealthCheckConfig_StatusTypeDef HealthCheckConfig_UpdateResource(
   if ((index >= HEALTH_CHECK_CONFIG_MAX_RESOURCES)
       || (host == NULL) || (host[0] == '\0') || (path == NULL)
       || (path[0] != '/') || (port == 0U)
+      || (trustAnchorId < TLS_TRUST_STORE_MIN_ID)
       || (trustAnchorId > TLS_TRUST_STORE_MAX_PERSISTED)
       || (strlen(host) >= HEALTH_CHECK_CONFIG_HOST_SIZE)
       || (strlen(path) >= HEALTH_CHECK_CONFIG_PATH_SIZE))
@@ -467,18 +480,4 @@ uint8_t HealthCheckConfig_IsTrustAnchorInUse(uint8_t trustAnchorId) {
   }
   (void)xSemaphoreGive(configMutex);
   return inUse;
-}
-
-HealthCheckConfig_StatusTypeDef HealthCheckConfig_ResetTrustAnchors(void) {
-  if (xSemaphoreTake(configMutex, portMAX_DELAY) != pdTRUE)
-    return HEALTH_CHECK_CONFIG_STATUS_STORAGE_ERROR;
-  HealthCheckConfig_SnapshotTypeDef candidate = snapshot;
-  for (uint8_t index = 0U; index < HEALTH_CHECK_CONFIG_MAX_RESOURCES; ++index)
-    candidate.resources[index].trustAnchorId = 0U;
-  HealthCheckConfig_StatusTypeDef status =
-    (healthCheckConfig_Save(&candidate) == HEALTH_CHECK_STATUS_OK)
-      ? HEALTH_CHECK_CONFIG_STATUS_OK
-      : HEALTH_CHECK_CONFIG_STATUS_STORAGE_ERROR;
-  (void)xSemaphoreGive(configMutex);
-  return status;
 }
