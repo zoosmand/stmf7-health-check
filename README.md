@@ -161,8 +161,8 @@ floating.
 ## Factory reset
 
 Hold the NUCLEO B1 user button for five seconds to restore the device's mutable
-state. Short presses have no effect. Two long tones acknowledge a confirmed
-reset; the firmware then erases resources and their period, trust anchors,
+state. Short presses have no effect. Two long tones acknowledge that a durable
+reset marker was stored; the firmware then erases resources and their period, trust anchors,
 users and sessions, uploaded management credentials, and health-check logs
 from W25Q64 before restarting.
 
@@ -170,6 +170,9 @@ The compiled master-password verifier and compiled recovery server certificate
 and key remain available. A dedicated Flash marker is erased last, so startup
 automatically completes a reset interrupted by power loss before any persistent
 store is loaded.
+Five short tones report a Flash failure. A marker-write failure cancels the
+reset without claiming success; an erase failure restarts with the marker still
+present so startup can retry safely.
 
 ## Management API
 

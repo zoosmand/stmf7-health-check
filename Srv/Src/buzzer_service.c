@@ -33,8 +33,12 @@
 #define BUZZER_ALERT_BEEP_COUNT 3U
 #define BUZZER_RESET_TONE_MS    350U
 #define BUZZER_RESET_GAP_MS     150U
+#define BUZZER_FAILURE_TONE_MS  70U
+#define BUZZER_FAILURE_GAP_MS   70U
+#define BUZZER_FAILURE_COUNT    5U
 #define BUZZER_EVENT_ALERT      1U
 #define BUZZER_EVENT_RESET      2U
+#define BUZZER_EVENT_FAILURE    3U
 
 static StaticTask_t buzzerTaskControlBlock;
 static StackType_t buzzerTaskStack[BUZZER_STACK_WORDS];
@@ -81,6 +85,13 @@ void BuzzerService_FactoryResetSignal(void) {
   (void)xQueueOverwrite(buzzerQueue, &event);
 }
 
+void BuzzerService_FactoryResetFailure(void) {
+  if (buzzerQueue == NULL)
+    return;
+  uint8_t event = BUZZER_EVENT_FAILURE;
+  (void)xQueueOverwrite(buzzerQueue, &event);
+}
+
 /**
   * @brief Play the startup self-test tone, then play the configured alert
   *        pattern once per queued request.
@@ -98,6 +109,14 @@ static void buzzerService_Task(void* argument) {
       buzzerService_Beep(BUZZER_RESET_TONE_MS);
       vTaskDelay(pdMS_TO_TICKS(BUZZER_RESET_GAP_MS));
       buzzerService_Beep(BUZZER_RESET_TONE_MS);
+      continue;
+    }
+    if (event == BUZZER_EVENT_FAILURE) {
+      for (uint32_t index = 0U; index < BUZZER_FAILURE_COUNT; index++) {
+        buzzerService_Beep(BUZZER_FAILURE_TONE_MS);
+        if ((index + 1U) < BUZZER_FAILURE_COUNT)
+          vTaskDelay(pdMS_TO_TICKS(BUZZER_FAILURE_GAP_MS));
+      }
       continue;
     }
     for (uint32_t index = 0U; index < BUZZER_ALERT_BEEP_COUNT; index++) {

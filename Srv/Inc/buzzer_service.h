@@ -45,4 +45,10 @@ void BuzzerService_Alert(void);
   */
 void BuzzerService_FactoryResetSignal(void);
 
+/**
+  * @brief Schedule the distinct factory-reset failure pattern.
+  * @note This event replaces any queued resource-alert event.
+  */
+void BuzzerService_FactoryResetFailure(void);
+
 #endif /* BUZZER_SERVICE_H */

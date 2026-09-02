@@ -26,11 +26,14 @@
 #include "task.h"
 #include "user_button.h"
 
-#define FACTORY_RESET_TASK_PRIORITY  (tskIDLE_PRIORITY + 1U)
+#define FACTORY_RESET_TASK_PRIORITY  (configMAX_PRIORITIES - 2U)
 #define FACTORY_RESET_STACK_WORDS    256U
 #define FACTORY_RESET_POLL_MS        20U
 #define FACTORY_RESET_HOLD_MS        5000U
+#define FACTORY_RESET_HOLD_SAMPLES \
+  (FACTORY_RESET_HOLD_MS / FACTORY_RESET_POLL_MS)
 #define FACTORY_RESET_SIGNAL_WAIT_MS 1200U
+#define FACTORY_RESET_FAILURE_WAIT_MS 1000U
 #define FACTORY_RESET_MARKER_MAGIC   0x46525354UL
 
 /** @brief Durable indication that persistent-state erasure must be completed. */
@@ -46,6 +49,7 @@ static void factoryResetService_Task(void* argument);
 static W25Q64_StatusTypeDef factoryResetService_ReadMarker(uint8_t* isValid);
 static W25Q64_StatusTypeDef factoryResetService_WriteMarker(void);
 static W25Q64_StatusTypeDef factoryResetService_ErasePersistentState(void);
+static void factoryResetService_Restart(void) __attribute__((noreturn));
 
 W25Q64_StatusTypeDef FactoryResetService_ResumePending(void) {
   uint8_t isValid = 0U;
@@ -83,31 +87,45 @@ BaseType_t FactoryResetService_Init(void) {
 static void factoryResetService_Task(void* argument) {
   (void)argument;
   for (;;) {
-    while (UserButton_IsPressed() == 0U)
-      vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
-
-    TickType_t pressStarted = xTaskGetTickCount();
-    while ((UserButton_IsPressed() != 0U)
-        && ((xTaskGetTickCount() - pressStarted)
-          < pdMS_TO_TICKS(FACTORY_RESET_HOLD_MS))) {
+    uint32_t pressedSamples = 0U;
+    while (pressedSamples < FACTORY_RESET_HOLD_SAMPLES) {
+      if (UserButton_IsPressed() != 0U)
+        ++pressedSamples;
+      else
+        pressedSamples = 0U;
       vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
     }
-    if (UserButton_IsPressed() == 0U)
-      continue;
 
     Common_Printf("Factory reset: long press confirmed.\n");
-    BuzzerService_FactoryResetSignal();
-    vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_SIGNAL_WAIT_MS));
     W25Q64_StatusTypeDef status = factoryResetService_WriteMarker();
-    if (status == W25Q64_STATUS_OK)
-      status = factoryResetService_ErasePersistentState();
-    if (status == W25Q64_STATUS_OK) {
-      Common_Printf("Factory reset: complete; restarting.\n");
-      NVIC_SystemReset();
+    if (status != W25Q64_STATUS_OK) {
+      Common_Printf(
+        "Factory reset: marker write failed, status=%u; reset cancelled.\n",
+        status
+      );
+      BuzzerService_FactoryResetFailure();
+      vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_FAILURE_WAIT_MS));
+      while (UserButton_IsPressed() != 0U)
+        vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
+      continue;
     }
 
-    Common_Printf("Factory reset: failed, status=%u; recovery pending.\n", status);
-    NVIC_SystemReset();
+    Common_Printf("Factory reset: accepted; erasing persistent state.\n");
+    BuzzerService_FactoryResetSignal();
+    vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_SIGNAL_WAIT_MS));
+    status = factoryResetService_ErasePersistentState();
+    if (status != W25Q64_STATUS_OK) {
+      Common_Printf(
+        "Factory reset: erase failed, status=%u; recovery pending.\n",
+        status
+      );
+      BuzzerService_FactoryResetFailure();
+      vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_FAILURE_WAIT_MS));
+      factoryResetService_Restart();
+    }
+
+    Common_Printf("Factory reset: complete; restarting.\n");
+    factoryResetService_Restart();
   }
 }
 
@@ -142,13 +160,15 @@ static W25Q64_StatusTypeDef factoryResetService_WriteMarker(void) {
       sizeof(marker)
     );
   }
-  if (status != W25Q64_STATUS_OK)
-    return status;
+
+  W25Q64_StatusTypeDef operationStatus = status;
   uint8_t isValid = 0U;
   status = factoryResetService_ReadMarker(&isValid);
-  return ((status == W25Q64_STATUS_OK) && (isValid == 0U))
-    ? W25Q64_STATUS_IO_ERROR
-    : status;
+  if ((status == W25Q64_STATUS_OK) && (isValid != 0U))
+    return W25Q64_STATUS_OK;
+  if (operationStatus != W25Q64_STATUS_OK)
+    return operationStatus;
+  return status != W25Q64_STATUS_OK ? status : W25Q64_STATUS_IO_ERROR;
 }
 
 static W25Q64_StatusTypeDef factoryResetService_ErasePersistentState(void) {
@@ -156,4 +176,11 @@ static W25Q64_StatusTypeDef factoryResetService_ErasePersistentState(void) {
     FLASH_LAYOUT_FACTORY_RESET_MARKER_SECTOR,
     FLASH_LAYOUT_FACTORY_RESET_DATA_LENGTH + W25Q64_SECTOR_SIZE
   );
+}
+
+static void factoryResetService_Restart(void) {
+  taskENTER_CRITICAL();
+  NVIC_SystemReset();
+  for (;;) {
+  }
 }
