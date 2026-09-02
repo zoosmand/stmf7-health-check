@@ -39,4 +39,10 @@ BaseType_t BuzzerService_Init(void);
   */
 void BuzzerService_Alert(void);
 
+/**
+  * @brief Schedule the distinct factory-reset acknowledgement pattern.
+  * @note This event replaces any queued resource-alert event.
+  */
+void BuzzerService_FactoryResetSignal(void);
+
 #endif /* BUZZER_SERVICE_H */

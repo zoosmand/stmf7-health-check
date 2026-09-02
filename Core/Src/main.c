@@ -33,10 +33,13 @@ int main(void) {
   Common_Printf("Startup: initializing W25Q64 Flash...\n");
   Spi1_Init();
   W25Q64_StatusTypeDef flashStatus = W25Q64_Init();
-  if (flashStatus == W25Q64_STATUS_OK)
+  if (flashStatus == W25Q64_STATUS_OK) {
     Common_Printf("Startup: W25Q64 Flash ready.\n");
-  else
+    if (FactoryResetService_ResumePending() != W25Q64_STATUS_OK)
+      System_ErrorHandler();
+  } else {
     Common_Printf("W25Q64 initialization failed: %u\n", (unsigned)flashStatus);
+  }
 
   Common_Printf("Startup: initializing heartbeat output...\n");
   Gpio_InitOutput(GPIOB, HEART_BEAT_PIN_POSITION);
@@ -60,6 +63,16 @@ int main(void) {
   if (BuzzerService_Init() != pdPASS)
     System_ErrorHandler();
   Common_Printf("Startup: buzzer service ready.\n");
+
+  if (flashStatus == W25Q64_STATUS_OK) {
+    Common_Printf("Startup: creating factory-reset service.\n");
+    UserButton_Init();
+    if (FactoryResetService_Init() != pdPASS)
+      System_ErrorHandler();
+    Common_Printf("Startup: factory-reset service ready.\n");
+  } else {
+    Common_Printf("Startup: factory reset unavailable without W25Q64.\n");
+  }
 
   if (ethernetStatus == ETHERNET_STATUS_OK) {
     Common_Printf("Startup: creating network service...\n");

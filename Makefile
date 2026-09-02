@@ -48,11 +48,13 @@ Core/Src/system.c \
 Periph/Src/buzzer.c \
 Periph/Src/gpio.c \
 Periph/Src/spi.c \
+Periph/Src/user_button.c \
 Periph/Src/w25q64.c \
 Srv/Src/heart_beat.c \
 Srv/Src/api_service.c \
 Srv/Src/auth_service.c \
 Srv/Src/buzzer_service.c \
+Srv/Src/factory_reset_service.c \
 Srv/Src/health_check_config.c \
 Srv/Src/health_check_log.c \
 Srv/Src/health_check_service.c \

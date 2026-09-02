@@ -27,6 +27,7 @@
 #include "buzzer.h"
 #include "buzzer_service.h"
 #include "common.h"
+#include "factory_reset_service.h"
 #include "gpio.h"
 #include "heart_beat.h"
 #include "health_check_service.h"
@@ -41,5 +42,6 @@
 #include "tls_trust_store.h"
 #include "w25q64.h"
 #include "watchdog_service.h"
+#include "user_button.h"
 
 #endif /* MAIN_H */
