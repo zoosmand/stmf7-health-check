@@ -1,57 +1,47 @@
 /**
   ******************************************************************************
   * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the defines of the application.
+  * @brief          : Application entry-point dependencies.
+  * @project        : STM32F767 Health Check
+  * @platform       : STMicroelectronics STM32F767ZIT6
+  * @created        : 29.09.2025
   ******************************************************************************
   * @attention
   *
-  * 
+  * Copyright (c) 2017-2026 Dmitry Slobodchikov
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
 
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __MAIN_H
-#define __MAIN_H
+#ifndef MAIN_H
+#define MAIN_H
 
+#include "FreeRTOS.h"
+#include "task.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-/* Includes ------------------------------------------------------------------*/
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <time.h>
-//
-#include "stm32f7xx.h"
-
-/* Private includes ----------------------------------------------------------*/
+#include "buzzer.h"
+#include "buzzer_service.h"
 #include "common.h"
-#include "stm32f7xx_it.h"
+#include "factory_reset_service.h"
+#include "gpio.h"
+#include "heart_beat.h"
+#include "health_check_service.h"
+#include "health_check_types.h"
+#include "health_check_config.h"
+#include "health_check_log.h"
+#include "init_ll.h"
+#include "network_service.h"
+#include "spi.h"
+#include "time_service.h"
+#include "tls_platform.h"
+#include "tls_trust_store.h"
+#include "w25q64.h"
+#include "watchdog_service.h"
+#include "user_button.h"
 
-/* Exported types ------------------------------------------------------------*/
-
-
-/* Exported constants --------------------------------------------------------*/
-
-/* Exported macro ------------------------------------------------------------*/
-
-/* Extern global variables ---------------------------------------------------*/
-
-/* Exported functions prototypes ---------------------------------------------*/
-
-/* Private defines -----------------------------------------------------------*/
-
-/* Public defines ------------------------------------------------------------*/
-
-/* Peripheral initialization statuses ----------------------------------------*/
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __MAIN_H */
+#endif /* MAIN_H */

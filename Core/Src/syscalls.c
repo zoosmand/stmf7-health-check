@@ -30,6 +30,8 @@
 #include <sys/time.h>
 #include <sys/times.h>
 
+#include "time_service.h"
+
 
 /* Variables */
 extern int __io_putchar(int ch) __attribute__((weak));
@@ -143,6 +145,20 @@ int _times(struct tms *buf)
 {
   (void)buf;
   return -1;
+}
+
+int _gettimeofday(struct timeval *timeValue, void *timezone)
+{
+  (void)timezone;
+  uint32_t unixTime;
+  if ((timeValue == NULL)
+      || (TimeService_GetUnixTime(&unixTime) != HEALTH_CHECK_STATUS_OK)) {
+    errno = EINVAL;
+    return -1;
+  }
+  timeValue->tv_sec = (time_t)unixTime;
+  timeValue->tv_usec = 0;
+  return 0;
 }
 
 int _stat(char *file, struct stat *st)
