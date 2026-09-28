@@ -92,6 +92,12 @@ void BuzzerService_FactoryResetWarning(void) {
   (void)xQueueOverwrite(buzzerQueue, &event);
 }
 
+TickType_t BuzzerService_FactoryResetWarningDuration(void) {
+  return (BUZZER_RESET_WARNING_COUNT * pdMS_TO_TICKS(BUZZER_RESET_TONE_MS))
+    + ((BUZZER_RESET_WARNING_COUNT - 1U)
+      * pdMS_TO_TICKS(BUZZER_RESET_GAP_MS));
+}
+
 void BuzzerService_FactoryResetCancelled(void) {
   if (buzzerQueue == NULL)
     return;

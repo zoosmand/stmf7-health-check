@@ -165,9 +165,10 @@ uses three long acknowledgement beeps.
 
 Hold the NUCLEO B1 user button continuously for ten seconds to request a
 factory reset. Short or bouncing presses have no effect. Five warning beeps
-then play, followed by a ten-second cancellation window. Release B1 and
-double-click it within 600 ms to cancel; three acknowledgement beeps confirm
-the cancellation and normal monitoring resumes.
+then play, followed by a ten-second cancellation window. Button clicks during
+the warning sequence are ignored. After the fifth beep finishes, release B1
+and double-click it within 600 ms to cancel; three acknowledgement beeps
+confirm the cancellation and normal monitoring resumes.
 
 If the cancellation window expires, the firmware stores a durable reset marker,
 then erases resources and their period, callback configuration, trust anchors,

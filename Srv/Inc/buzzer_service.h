@@ -46,6 +46,14 @@ void BuzzerService_Alert(void);
 void BuzzerService_FactoryResetWarning(void);
 
 /**
+  * @brief Return the scheduled five-beep warning pattern duration.
+  * @retval (TickType_t) Pattern duration in RTOS ticks.
+  * @note Use this value instead of duplicating the buzzer timing constants in
+  *       callers that must wait for the warning pattern to finish.
+  */
+TickType_t BuzzerService_FactoryResetWarningDuration(void);
+
+/**
   * @brief Schedule three beeps acknowledging factory-reset cancellation.
   * @note This event replaces any queued resource-alert event.
   */

@@ -36,7 +36,6 @@
   (FACTORY_RESET_HOLD_MS / FACTORY_RESET_POLL_MS)
 #define FACTORY_RESET_DEBOUNCE_SAMPLES \
   (FACTORY_RESET_DEBOUNCE_MS / FACTORY_RESET_POLL_MS)
-#define FACTORY_RESET_WARNING_WAIT_MS 2400U
 #define FACTORY_RESET_CANCEL_WINDOW_MS 10000U
 #define FACTORY_RESET_DOUBLE_CLICK_MS  600U
 #define FACTORY_RESET_FAILURE_WAIT_MS 1000U
@@ -126,8 +125,10 @@ static void factoryResetService_Task(void* argument) {
     Common_Printf("Factory reset: long press confirmed.\n");
     BuzzerService_FactoryResetWarning();
     TickType_t warningStarted = xTaskGetTickCount();
+    TickType_t warningWait = BuzzerService_FactoryResetWarningDuration()
+      + pdMS_TO_TICKS(FACTORY_RESET_POLL_MS);
     while ((xTaskGetTickCount() - warningStarted)
-        < pdMS_TO_TICKS(FACTORY_RESET_WARNING_WAIT_MS)) {
+        < warningWait) {
       (void)factoryResetService_UpdateButton(&button);
       vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
     }

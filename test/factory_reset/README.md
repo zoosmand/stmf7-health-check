@@ -4,9 +4,10 @@
    occurs and persistent configuration remains unchanged.
 2. Hold B1 continuously for ten seconds. Confirm exactly five long warning
    beeps play before the ten-second cancellation window starts.
-3. Release B1 and double-click it within 600 ms during the window. Confirm
-   exactly three long acknowledgement beeps play, the reset is cancelled, and
-   all persistent configuration remains available.
+3. Double-click B1 while the warning beeps are still playing. Confirm the
+   clicks are ignored, then release B1 and double-click it within 600 ms after
+   the fifth beep. Confirm exactly three long acknowledgement beeps play, the
+   reset is cancelled, and all persistent configuration remains available.
 4. Try one click, two clicks spaced more than 600 ms apart, and noisy button
    transitions. Confirm none cancels the reset.
 5. Allow the cancellation window to expire. Confirm the device restarts with
