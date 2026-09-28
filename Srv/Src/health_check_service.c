@@ -83,9 +83,18 @@ static void healthCheckService_CheckResource(
   uint8_t index,
   const HealthCheckConfig_ResourceTypeDef* resource
 ) {
-  Common_Printf(
-    "HTTPS check: https://%s%s\r\n", resource->host, resource->path
-  );
+  if (resource->port == 443U) {
+    Common_Printf(
+      "HTTPS check: https://%s%s\r\n", resource->host, resource->path
+    );
+  } else {
+    Common_Printf(
+      "HTTPS check: https://%s:%u%s\r\n",
+      resource->host,
+      (unsigned int)resource->port,
+      resource->path
+    );
+  }
   TlsTransport_ResultTypeDef result;
   TlsTransport_Head(
     resource->host,

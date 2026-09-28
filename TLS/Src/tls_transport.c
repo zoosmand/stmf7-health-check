@@ -102,7 +102,9 @@ static int tlsTransport_Connect(
   int* detail
 ) {
   char portText[6];
-  (void)snprintf(portText, sizeof(portText), "%u", port);
+  (void)snprintf(
+    portText, sizeof(portText), "%u", (unsigned int)port
+  );
 
   struct addrinfo hints = {
     .ai_family = AF_INET,
@@ -350,17 +352,32 @@ TlsTransport_StatusTypeDef TlsTransport_Head(
   result->tlsVersion = mbedtls_ssl_get_version(&ssl);
   result->cipherSuite = mbedtls_ssl_get_ciphersuite(&ssl);
 
-  char request[256];
-  int requestLength = snprintf(
-    request,
-    sizeof(request),
-    "HEAD %s HTTP/1.1\r\n"
-    "Host: %s\r\n"
-    "Connection: close\r\n"
-    "User-Agent: stm32-health-check/1\r\n\r\n",
-    resource,
-    host
-  );
+  char request[320];
+  int requestLength;
+  if (port == 443U) {
+    requestLength = snprintf(
+      request,
+      sizeof(request),
+      "HEAD %s HTTP/1.1\r\n"
+      "Host: %s\r\n"
+      "Connection: close\r\n"
+      "User-Agent: stm32-health-check/1\r\n\r\n",
+      resource,
+      host
+    );
+  } else {
+    requestLength = snprintf(
+      request,
+      sizeof(request),
+      "HEAD %s HTTP/1.1\r\n"
+      "Host: %s:%u\r\n"
+      "Connection: close\r\n"
+      "User-Agent: stm32-health-check/1\r\n\r\n",
+      resource,
+      host,
+      (unsigned int)port
+    );
+  }
   if ((requestLength <= 0)
       || ((size_t)requestLength >= sizeof(request))) {
     detail = MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
