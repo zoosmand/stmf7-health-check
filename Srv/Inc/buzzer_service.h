@@ -40,10 +40,16 @@ BaseType_t BuzzerService_Init(void);
 void BuzzerService_Alert(void);
 
 /**
-  * @brief Schedule the distinct factory-reset acknowledgement pattern.
+  * @brief Schedule five warning beeps before the reset cancellation window.
   * @note This event replaces any queued resource-alert event.
   */
-void BuzzerService_FactoryResetSignal(void);
+void BuzzerService_FactoryResetWarning(void);
+
+/**
+  * @brief Schedule three beeps acknowledging factory-reset cancellation.
+  * @note This event replaces any queued resource-alert event.
+  */
+void BuzzerService_FactoryResetCancelled(void);
 
 /**
   * @brief Schedule the distinct factory-reset failure pattern.

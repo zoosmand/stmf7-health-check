@@ -158,15 +158,22 @@ through a one-entry static queue: a pattern already queued or playing absorbs
 further failures instead of queuing a backlog. TIM2's counter and channel
 output stay disabled whenever no tone is playing, and `PA3` is held as a plain
 low output outside an active tone, so the transistor base is never left
-floating.
+floating. Factory reset uses five long warning beeps; a successful cancellation
+uses three long acknowledgement beeps.
 
 ## Factory reset
 
-Hold the NUCLEO B1 user button for five seconds to restore the device's mutable
-state. Short presses have no effect. Two long tones acknowledge that a durable
-reset marker was stored; the firmware then erases resources and their period, trust anchors,
+Hold the NUCLEO B1 user button continuously for ten seconds to request a
+factory reset. Short or bouncing presses have no effect. Five warning beeps
+then play, followed by a ten-second cancellation window. Release B1 and
+double-click it within 600 ms to cancel; three acknowledgement beeps confirm
+the cancellation and normal monitoring resumes.
+
+If the cancellation window expires, the firmware stores a durable reset marker,
+then erases resources and their period, callback configuration, trust anchors,
 users and sessions, uploaded management credentials, and health-check logs
-from W25Q64 before restarting.
+from W25Q64 before restarting. Button press and release edges use 60 ms
+debouncing for both the long hold and double-click gesture.
 
 The compiled master-password verifier and compiled recovery server certificate
 and key remain available. A dedicated Flash marker is erased last, so startup
