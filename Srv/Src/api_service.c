@@ -22,6 +22,7 @@
 
 #include "FreeRTOS.h"
 #include "auth_service.h"
+#include "callback_config.h"
 #include "health_check_config.h"
 #include "health_check_log.h"
 #include "network_service.h"
@@ -260,6 +261,25 @@ static uint8_t apiService_JsonString(
     return 0U;
   output[length] = '\0';
   return 1U;
+}
+
+static uint8_t apiService_JsonHasKey(const char* json, const char* key) {
+  char pattern[40];
+  if (snprintf(pattern, sizeof(pattern), "\"%s\"", key) <= 0)
+    return 0U;
+  size_t patternLength = strlen(pattern);
+  const char* cursor = json;
+  while ((cursor = strstr(cursor, pattern)) != NULL) {
+    const char* separator = cursor + patternLength;
+    while ((*separator == ' ') || (*separator == '\t')
+        || (*separator == '\r') || (*separator == '\n')) {
+      ++separator;
+    }
+    if (*separator == ':')
+      return 1U;
+    cursor += patternLength;
+  }
+  return 0U;
 }
 
 static uint8_t apiService_JsonBoolean(
@@ -970,7 +990,8 @@ static int apiService_Dispatch(
     for (uint8_t id = TLS_TRUST_STORE_MIN_ID;
          id <= TLS_TRUST_STORE_MAX_PERSISTED;
          ++id) {
-      if (HealthCheckConfig_IsTrustAnchorInUse(id) != 0U) {
+      if ((HealthCheckConfig_IsTrustAnchorInUse(id) != 0U)
+          || (CallbackConfig_IsTrustAnchorInUse(id) != 0U)) {
         return apiService_Error(
           ssl, 409, "Conflict", "trust_anchor_in_use"
         );
@@ -1008,7 +1029,8 @@ static int apiService_Dispatch(
     }
     uint8_t id = (uint8_t)idValue;
     if (deletingTrustAnchor != 0U) {
-      if (HealthCheckConfig_IsTrustAnchorInUse(id) != 0U)
+      if ((HealthCheckConfig_IsTrustAnchorInUse(id) != 0U)
+          || (CallbackConfig_IsTrustAnchorInUse(id) != 0U))
         return apiService_Error(
           ssl, 409, "Conflict", "trust_anchor_in_use"
         );
@@ -1033,6 +1055,96 @@ static int apiService_Dispatch(
       (unsigned int)id
     );
     return apiService_Respond(ssl, 200, "OK", json);
+  }
+
+  if ((strcmp(request->method, "GET") == 0)
+      && (strcmp(request->path, "/api/v1/callback/config") == 0)) {
+    CallbackConfig_TypeDef config;
+    CallbackConfig_Get(&config);
+    char json[320];
+    (void)snprintf(
+      json, sizeof(json),
+      "{\"enabled\":%s,\"method\":\"%s\",\"host\":\"%s\","
+      "\"port\":%u,\"path\":\"%s\",\"trust_anchor_id\":%u}",
+      config.enabled != 0U ? "true" : "false",
+      config.method == CALLBACK_METHOD_POST ? "POST" : "GET",
+      config.host, (unsigned int)config.port, config.path,
+      (unsigned int)config.trustAnchorId
+    );
+    return apiService_Respond(ssl, 200, "OK", json);
+  }
+
+  if ((strcmp(request->method, "PUT") == 0)
+      && (strcmp(request->path, "/api/v1/callback/config") == 0)) {
+    if (principal.role != USER_ROLE_ADMINISTRATOR)
+      return apiService_Error(ssl, 403, "Forbidden", "forbidden");
+    CallbackConfig_TypeDef config;
+    CallbackConfig_Get(&config);
+    char method[8];
+    char host[CALLBACK_CONFIG_HOST_SIZE];
+    char path[CALLBACK_CONFIG_PATH_SIZE];
+    uint32_t port = config.port;
+    uint32_t trustAnchor = config.trustAnchorId;
+    uint8_t enabled = config.enabled;
+    (void)strncpy(
+      method, config.method == CALLBACK_METHOD_POST ? "POST" : "GET",
+      sizeof(method) - 1U
+    );
+    method[sizeof(method) - 1U] = '\0';
+    memcpy(host, config.host, sizeof(host));
+    memcpy(path, config.path, sizeof(path));
+    if (((apiService_JsonHasKey(request->body, "enabled") != 0U)
+          && (apiService_JsonBoolean(
+            request->body, "enabled", &enabled
+          ) == 0U))
+        || ((apiService_JsonHasKey(request->body, "method") != 0U)
+          && (apiService_JsonString(
+            request->body, "method", method, sizeof(method)
+          ) == 0U))
+        || ((apiService_JsonHasKey(request->body, "host") != 0U)
+          && (apiService_JsonString(
+            request->body, "host", host, sizeof(host)
+          ) == 0U))
+        || ((apiService_JsonHasKey(request->body, "path") != 0U)
+          && (apiService_JsonString(
+            request->body, "path", path, sizeof(path)
+          ) == 0U))
+        || ((apiService_JsonHasKey(request->body, "port") != 0U)
+          && (apiService_JsonNumber(request->body, "port", &port) == 0U))
+        || ((apiService_JsonHasKey(
+              request->body, "trust_anchor_id"
+            ) != 0U)
+          && (apiService_JsonNumber(
+            request->body, "trust_anchor_id", &trustAnchor
+          ) == 0U))) {
+      return apiService_Error(ssl, 400, "Bad Request", "invalid_request");
+    }
+    if ((strcmp(method, "GET") != 0) && (strcmp(method, "POST") != 0))
+      return apiService_Error(ssl, 400, "Bad Request", "invalid_method");
+    if ((port == 0U) || (port > 65535U))
+      return apiService_Error(ssl, 400, "Bad Request", "invalid_port");
+    if ((trustAnchor < TLS_TRUST_STORE_MIN_ID)
+        || (trustAnchor > TLS_TRUST_STORE_MAX_PERSISTED)
+        || ((enabled != 0U)
+          && (TlsTrustStore_Exists((uint8_t)trustAnchor) == 0U))) {
+      return apiService_Error(
+        ssl, 400, "Bad Request", "invalid_trust_anchor"
+      );
+    }
+    config.enabled = enabled;
+    config.method = strcmp(method, "POST") == 0
+      ? CALLBACK_METHOD_POST : CALLBACK_METHOD_GET;
+    config.port = (uint16_t)port;
+    config.trustAnchorId = (uint8_t)trustAnchor;
+    memcpy(config.host, host, sizeof(config.host));
+    memcpy(config.path, path, sizeof(config.path));
+    if (CallbackConfig_IsValid(&config) == 0U)
+      return apiService_Error(ssl, 400, "Bad Request", "invalid_request");
+    if (CallbackConfig_Set(&config) != HEALTH_CHECK_STATUS_OK)
+      return apiService_Error(
+        ssl, 500, "Internal Server Error", "storage_error"
+      );
+    return apiService_Respond(ssl, 200, "OK", "{\"updated\":true}");
   }
 
   if ((strcmp(request->method, "GET") == 0)

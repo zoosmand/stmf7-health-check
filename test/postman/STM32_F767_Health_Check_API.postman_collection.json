@@ -49,6 +49,30 @@
       "value": "false"
     },
     {
+      "key": "callbackEnabled",
+      "value": "false"
+    },
+    {
+      "key": "callbackMethod",
+      "value": "POST"
+    },
+    {
+      "key": "callbackHost",
+      "value": "loopback.intraclear.com"
+    },
+    {
+      "key": "callbackPort",
+      "value": "443"
+    },
+    {
+      "key": "callbackPath",
+      "value": "/"
+    },
+    {
+      "key": "callbackTrustAnchorId",
+      "value": "1"
+    },
+    {
       "key": "trustAnchorId",
       "value": ""
     },
@@ -606,6 +630,67 @@
                 "health-check",
                 "logs"
               ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Callback",
+      "item": [
+        {
+          "name": "Get callback configuration",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Callback configuration returned\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.all.keys(\"enabled\", \"method\", \"host\", \"port\", \"path\", \"trust_anchor_id\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/callback/config",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "callback", "config"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update callback configuration",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Callback configuration updated\", () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().updated).to.eql(true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"enabled\": {{callbackEnabled}},\n    \"method\": \"{{callbackMethod}}\",\n    \"host\": \"{{callbackHost}}\",\n    \"port\": {{callbackPort}},\n    \"path\": \"{{callbackPath}}\",\n    \"trust_anchor_id\": {{callbackTrustAnchorId}}\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/callback/config",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "callback", "config"]
             }
           },
           "response": []

@@ -172,6 +172,14 @@ static W25Q64_StatusTypeDef factoryResetService_WriteMarker(void) {
 }
 
 static W25Q64_StatusTypeDef factoryResetService_ErasePersistentState(void) {
+  W25Q64_StatusTypeDef status = W25Q64_EraseSector(
+    FLASH_LAYOUT_CALLBACK_CONFIG_SECTOR_A
+  );
+  if (status != W25Q64_STATUS_OK)
+    return status;
+  status = W25Q64_EraseSector(FLASH_LAYOUT_CALLBACK_CONFIG_SECTOR_B);
+  if (status != W25Q64_STATUS_OK)
+    return status;
   return W25Q64_EraseRange(
     FLASH_LAYOUT_FACTORY_RESET_MARKER_SECTOR,
     FLASH_LAYOUT_FACTORY_RESET_DATA_LENGTH + W25Q64_SECTOR_SIZE
