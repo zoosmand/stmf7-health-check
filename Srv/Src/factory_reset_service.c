@@ -30,12 +30,28 @@
 #define FACTORY_RESET_TASK_PRIORITY  (configMAX_PRIORITIES - 2U)
 #define FACTORY_RESET_STACK_WORDS    256U
 #define FACTORY_RESET_POLL_MS        20U
-#define FACTORY_RESET_HOLD_MS        5000U
+#define FACTORY_RESET_DEBOUNCE_MS    60U
+#define FACTORY_RESET_HOLD_MS        10000U
 #define FACTORY_RESET_HOLD_SAMPLES \
   (FACTORY_RESET_HOLD_MS / FACTORY_RESET_POLL_MS)
-#define FACTORY_RESET_SIGNAL_WAIT_MS 1200U
+#define FACTORY_RESET_DEBOUNCE_SAMPLES \
+  (FACTORY_RESET_DEBOUNCE_MS / FACTORY_RESET_POLL_MS)
+#define FACTORY_RESET_CANCEL_WINDOW_MS 10000U
+#define FACTORY_RESET_DOUBLE_CLICK_MS  600U
 #define FACTORY_RESET_FAILURE_WAIT_MS 1000U
 #define FACTORY_RESET_MARKER_MAGIC   0x46525354UL
+
+typedef enum {
+  FACTORY_RESET_BUTTON_EVENT_NONE = 0,
+  FACTORY_RESET_BUTTON_EVENT_PRESSED,
+  FACTORY_RESET_BUTTON_EVENT_RELEASED,
+} FactoryReset_ButtonEventTypeDef;
+
+typedef struct {
+  uint8_t stablePressed;
+  uint8_t candidatePressed;
+  uint8_t candidateSamples;
+} FactoryReset_ButtonStateTypeDef;
 
 /** @brief Durable indication that persistent-state erasure must be completed. */
 typedef struct {
@@ -47,6 +63,18 @@ static StaticTask_t factoryResetTaskControlBlock;
 static StackType_t factoryResetTaskStack[FACTORY_RESET_STACK_WORDS];
 
 static void factoryResetService_Task(void* argument);
+static FactoryReset_ButtonEventTypeDef factoryResetService_UpdateButton(
+  FactoryReset_ButtonStateTypeDef* button
+);
+static void factoryResetService_WaitForLongPress(
+  FactoryReset_ButtonStateTypeDef* button
+);
+static uint8_t factoryResetService_WaitForCancellation(
+  FactoryReset_ButtonStateTypeDef* button
+);
+static void factoryResetService_WaitForRelease(
+  FactoryReset_ButtonStateTypeDef* button
+);
 static W25Q64_StatusTypeDef factoryResetService_ReadMarker(uint8_t* isValid);
 static W25Q64_StatusTypeDef factoryResetService_WriteMarker(void);
 static W25Q64_StatusTypeDef factoryResetService_ErasePersistentState(void);
@@ -90,17 +118,30 @@ BaseType_t FactoryResetService_Init(void) {
 
 static void factoryResetService_Task(void* argument) {
   (void)argument;
+  FactoryReset_ButtonStateTypeDef button = {0U};
   for (;;) {
-    uint32_t pressedSamples = 0U;
-    while (pressedSamples < FACTORY_RESET_HOLD_SAMPLES) {
-      if (UserButton_IsPressed() != 0U)
-        ++pressedSamples;
-      else
-        pressedSamples = 0U;
+    factoryResetService_WaitForLongPress(&button);
+
+    Common_Printf("Factory reset: long press confirmed.\n");
+    BuzzerService_FactoryResetWarning();
+    TickType_t warningStarted = xTaskGetTickCount();
+    TickType_t warningWait = BuzzerService_FactoryResetWarningDuration()
+      + pdMS_TO_TICKS(FACTORY_RESET_POLL_MS);
+    while ((xTaskGetTickCount() - warningStarted)
+        < warningWait) {
+      (void)factoryResetService_UpdateButton(&button);
       vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
     }
 
-    Common_Printf("Factory reset: long press confirmed.\n");
+    Common_Printf("Factory reset: cancellation window open.\n");
+    if (factoryResetService_WaitForCancellation(&button) != 0U) {
+      Common_Printf("Factory reset: cancelled by double-click.\n");
+      BuzzerService_FactoryResetCancelled();
+      factoryResetService_WaitForRelease(&button);
+      continue;
+    }
+
+    Common_Printf("Factory reset: cancellation window expired.\n");
     W25Q64_StatusTypeDef status = factoryResetService_WriteMarker();
     if (status != W25Q64_STATUS_OK) {
       Common_Printf(
@@ -109,14 +150,11 @@ static void factoryResetService_Task(void* argument) {
       );
       BuzzerService_FactoryResetFailure();
       vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_FAILURE_WAIT_MS));
-      while (UserButton_IsPressed() != 0U)
-        vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
+      factoryResetService_WaitForRelease(&button);
       continue;
     }
 
     Common_Printf("Factory reset: accepted; erasing persistent state.\n");
-    BuzzerService_FactoryResetSignal();
-    vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_SIGNAL_WAIT_MS));
     status = factoryResetService_ErasePersistentState();
     if (status != W25Q64_STATUS_OK) {
       Common_Printf(
@@ -130,6 +168,84 @@ static void factoryResetService_Task(void* argument) {
 
     Common_Printf("Factory reset: complete; restarting.\n");
     factoryResetService_Restart();
+  }
+}
+
+/** @brief Debounce one raw B1 sample and return stable edge events. */
+static FactoryReset_ButtonEventTypeDef factoryResetService_UpdateButton(
+  FactoryReset_ButtonStateTypeDef* button
+) {
+  uint8_t pressed = UserButton_IsPressed() != 0U ? 1U : 0U;
+  if (pressed != button->candidatePressed) {
+    button->candidatePressed = pressed;
+    button->candidateSamples = 1U;
+    return FACTORY_RESET_BUTTON_EVENT_NONE;
+  }
+  if (button->candidateSamples < FACTORY_RESET_DEBOUNCE_SAMPLES)
+    ++button->candidateSamples;
+  if ((button->candidateSamples < FACTORY_RESET_DEBOUNCE_SAMPLES)
+      || (button->stablePressed == button->candidatePressed)) {
+    return FACTORY_RESET_BUTTON_EVENT_NONE;
+  }
+  button->stablePressed = button->candidatePressed;
+  return button->stablePressed != 0U
+    ? FACTORY_RESET_BUTTON_EVENT_PRESSED
+    : FACTORY_RESET_BUTTON_EVENT_RELEASED;
+}
+
+/** @brief Wait for one uninterrupted ten-second debounced press. */
+static void factoryResetService_WaitForLongPress(
+  FactoryReset_ButtonStateTypeDef* button
+) {
+  uint32_t pressedSamples = 0U;
+  while (pressedSamples < FACTORY_RESET_HOLD_SAMPLES) {
+    (void)factoryResetService_UpdateButton(button);
+    if (button->stablePressed != 0U)
+      ++pressedSamples;
+    else
+      pressedSamples = 0U;
+    vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
+  }
+}
+
+/** @brief Detect a released-press-released-press double-click in the window. */
+static uint8_t factoryResetService_WaitForCancellation(
+  FactoryReset_ButtonStateTypeDef* button
+) {
+  TickType_t windowStarted = xTaskGetTickCount();
+  TickType_t firstClickAt = 0U;
+  uint8_t clickCount = 0U;
+  uint8_t armed = button->stablePressed == 0U ? 1U : 0U;
+  while ((xTaskGetTickCount() - windowStarted)
+      < pdMS_TO_TICKS(FACTORY_RESET_CANCEL_WINDOW_MS)) {
+    FactoryReset_ButtonEventTypeDef event =
+      factoryResetService_UpdateButton(button);
+    TickType_t now = xTaskGetTickCount();
+    if (armed == 0U) {
+      if (event == FACTORY_RESET_BUTTON_EVENT_RELEASED)
+        armed = 1U;
+    } else if (event == FACTORY_RESET_BUTTON_EVENT_PRESSED) {
+      if ((clickCount == 0U)
+          || ((now - firstClickAt)
+            > pdMS_TO_TICKS(FACTORY_RESET_DOUBLE_CLICK_MS))) {
+        clickCount = 1U;
+        firstClickAt = now;
+      } else {
+        return 1U;
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
+  }
+  return 0U;
+}
+
+/** @brief Prevent a completed gesture from becoming the next long press. */
+static void factoryResetService_WaitForRelease(
+  FactoryReset_ButtonStateTypeDef* button
+) {
+  while (button->stablePressed != 0U) {
+    (void)factoryResetService_UpdateButton(button);
+    vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
   }
 }
 

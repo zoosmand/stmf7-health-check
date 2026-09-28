@@ -37,9 +37,12 @@
 #define BUZZER_FAILURE_TONE_MS  70U
 #define BUZZER_FAILURE_GAP_MS   70U
 #define BUZZER_FAILURE_COUNT    5U
-#define BUZZER_EVENT_ALERT      1U
-#define BUZZER_EVENT_RESET      2U
-#define BUZZER_EVENT_FAILURE    3U
+#define BUZZER_EVENT_ALERT           1U
+#define BUZZER_EVENT_RESET_WARNING   2U
+#define BUZZER_EVENT_RESET_CANCELLED 3U
+#define BUZZER_EVENT_FAILURE         4U
+#define BUZZER_RESET_WARNING_COUNT   5U
+#define BUZZER_RESET_CANCEL_COUNT    3U
 
 static StaticTask_t buzzerTaskControlBlock;
 static StackType_t buzzerTaskStack[BUZZER_STACK_WORDS];
@@ -82,10 +85,23 @@ void BuzzerService_Alert(void) {
   (void)xQueueSend(buzzerQueue, &event, 0U);
 }
 
-void BuzzerService_FactoryResetSignal(void) {
+void BuzzerService_FactoryResetWarning(void) {
   if (buzzerQueue == NULL)
     return;
-  uint8_t event = BUZZER_EVENT_RESET;
+  uint8_t event = BUZZER_EVENT_RESET_WARNING;
+  (void)xQueueOverwrite(buzzerQueue, &event);
+}
+
+TickType_t BuzzerService_FactoryResetWarningDuration(void) {
+  return (BUZZER_RESET_WARNING_COUNT * pdMS_TO_TICKS(BUZZER_RESET_TONE_MS))
+    + ((BUZZER_RESET_WARNING_COUNT - 1U)
+      * pdMS_TO_TICKS(BUZZER_RESET_GAP_MS));
+}
+
+void BuzzerService_FactoryResetCancelled(void) {
+  if (buzzerQueue == NULL)
+    return;
+  uint8_t event = BUZZER_EVENT_RESET_CANCELLED;
   (void)xQueueOverwrite(buzzerQueue, &event);
 }
 
@@ -109,10 +125,15 @@ static void buzzerService_Task(void* argument) {
     uint8_t event;
     if (xQueueReceive(buzzerQueue, &event, portMAX_DELAY) != pdTRUE)
       continue;
-    if (event == BUZZER_EVENT_RESET) {
-      buzzerService_Beep(BUZZER_RESET_TONE_MS);
-      vTaskDelay(pdMS_TO_TICKS(BUZZER_RESET_GAP_MS));
-      buzzerService_Beep(BUZZER_RESET_TONE_MS);
+    if ((event == BUZZER_EVENT_RESET_WARNING)
+        || (event == BUZZER_EVENT_RESET_CANCELLED)) {
+      uint32_t count = event == BUZZER_EVENT_RESET_WARNING
+        ? BUZZER_RESET_WARNING_COUNT : BUZZER_RESET_CANCEL_COUNT;
+      for (uint32_t index = 0U; index < count; ++index) {
+        buzzerService_Beep(BUZZER_RESET_TONE_MS);
+        if ((index + 1U) < count)
+          vTaskDelay(pdMS_TO_TICKS(BUZZER_RESET_GAP_MS));
+      }
       continue;
     }
     if (event == BUZZER_EVENT_FAILURE) {
