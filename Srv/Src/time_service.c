@@ -23,6 +23,7 @@
 #include "health_check_types.h"
 #include "common.h"
 #include "network_service.h"
+#include "telemetry_service.h"
 
 #include "lwip/apps/sntp.h"
 #include "lwip/tcpip.h"
@@ -54,7 +55,10 @@ BaseType_t TimeService_Init(void) {
     timeTaskStack,
     &timeTaskControlBlock
   );
-  return task != NULL ? pdPASS : pdFAIL;
+  if (task == NULL)
+    return pdFAIL;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_TIME, task);
+  return pdPASS;
 }
 
 uint8_t TimeService_IsSynchronized(void) {

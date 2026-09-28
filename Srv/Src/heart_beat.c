@@ -21,6 +21,7 @@
 #include "heart_beat.h"
 
 #include "common.h"
+#include "telemetry_service.h"
 #include "task.h"
 
 #define HEART_BEAT_PORT           GPIOB
@@ -45,7 +46,10 @@ BaseType_t HeartBeatService_Init(void) {
     heartBeatTaskStack,
     &heartBeatTaskControlBlock
   );
-  return (task != NULL) ? pdPASS : pdFAIL;
+  if (task == NULL)
+    return pdFAIL;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_HEARTBEAT, task);
+  return pdPASS;
 }
 
 /**

@@ -435,6 +435,44 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Get runtime telemetry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Telemetry returned\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.uptime_ms).to.be.a(\"number\");",
+                  "pm.expect(body.dynamic_allocation).to.eql(false);",
+                  "pm.expect(body.tasks.callback.stack_min_free_bytes).to.be.a(\"number\");",
+                  "pm.expect(body.callback.queue_depth).to.be.within(0, 3);",
+                  "pm.expect(body.callback.delivery_success_count).to.be.a(\"number\");",
+                  "pm.expect(body.callback.delivery_failure_count).to.be.a(\"number\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/system/telemetry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "system",
+                "telemetry"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },

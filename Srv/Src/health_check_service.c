@@ -29,6 +29,7 @@
 #include "health_check_log.h"
 #include "common.h"
 #include "network_service.h"
+#include "telemetry_service.h"
 #include "time_service.h"
 #include "task.h"
 #include "tls_transport.h"
@@ -191,5 +192,8 @@ ErrorStatus HealthCheckService_Init(void) {
     healthCheckTaskStack,
     &healthCheckTaskControlBlock
   );
-  return task != NULL ? SUCCESS : ERROR;
+  if (task == NULL)
+    return ERROR;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_HEALTH_CHECK, task);
+  return SUCCESS;
 }

@@ -5,6 +5,7 @@
 #include "common.h"
 #include "queue.h"
 #include "task.h"
+#include "telemetry_service.h"
 #include "tls_transport.h"
 
 #include <stdio.h>
@@ -24,6 +25,7 @@ static uint8_t callbackQueueStorage[
   CALLBACK_QUEUE_LENGTH * sizeof(CallbackService_EventTypeDef)
 ];
 static QueueHandle_t callbackQueue;
+static CallbackService_TelemetryTypeDef callbackTelemetry;
 
 /** @brief Return a stable diagnostic name for a transport result stage. */
 static const char* callbackService_TransportStatusText(uint8_t status) {
@@ -99,6 +101,18 @@ static void callbackService_Task(void* argument) {
       method, config.host, config.port, resource, config.trustAnchorId,
       body, contentType, &result
     );
+    taskENTER_CRITICAL();
+    if ((result.status == TLS_TRANSPORT_OK)
+        && (result.httpStatus >= 200U) && (result.httpStatus < 300U)) {
+      ++callbackTelemetry.deliverySuccessCount;
+    } else {
+      ++callbackTelemetry.deliveryFailureCount;
+    }
+    callbackTelemetry.lastElapsedMs = result.elapsedMs;
+    callbackTelemetry.lastDetail = (int32_t)result.detail;
+    callbackTelemetry.lastHttpStatus = result.httpStatus;
+    callbackTelemetry.lastTransportStatus = (uint8_t)result.status;
+    taskEXIT_CRITICAL();
     Common_Printf(
       "Callback: resource=%u transport=%u http=%u detail=%d\r\n",
       (unsigned int)event.resourceIndex, (unsigned int)result.status,
@@ -116,7 +130,7 @@ HealthCheck_StatusTypeDef CallbackService_Init(void) {
   );
   if (callbackQueue == NULL)
     return HEALTH_CHECK_STATUS_ERROR;
-  return xTaskCreateStatic(
+  TaskHandle_t task = xTaskCreateStatic(
     callbackService_Task,
     "callback",
     CALLBACK_TASK_STACK_DEPTH,
@@ -124,7 +138,11 @@ HealthCheck_StatusTypeDef CallbackService_Init(void) {
     tskIDLE_PRIORITY,
     callbackTaskStack,
     &callbackTaskControlBlock
-  ) != NULL ? HEALTH_CHECK_STATUS_OK : HEALTH_CHECK_STATUS_ERROR;
+  );
+  if (task == NULL)
+    return HEALTH_CHECK_STATUS_ERROR;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_CALLBACK, task);
+  return HEALTH_CHECK_STATUS_OK;
 }
 
 void CallbackService_Enqueue(const HealthCheckLog_EntryTypeDef* entry) {
@@ -137,9 +155,22 @@ void CallbackService_Enqueue(const HealthCheckLog_EntryTypeDef* entry) {
     CallbackService_EventTypeDef discarded;
     (void)xQueueReceive(callbackQueue, &discarded, 0U);
     (void)xQueueSendToBack(callbackQueue, &event, 0U);
+    ++callbackTelemetry.droppedCount;
     dropped = 1U;
   }
   taskEXIT_CRITICAL();
   if (dropped != 0U)
     Common_Printf("Callback: queue full; dropping oldest result.\r\n");
+}
+
+void CallbackService_GetTelemetry(
+  CallbackService_TelemetryTypeDef* telemetry
+) {
+  if (telemetry == NULL)
+    return;
+  taskENTER_CRITICAL();
+  *telemetry = callbackTelemetry;
+  telemetry->queueDepth = callbackQueue != NULL
+    ? (uint8_t)uxQueueMessagesWaiting(callbackQueue) : 0U;
+  taskEXIT_CRITICAL();
 }

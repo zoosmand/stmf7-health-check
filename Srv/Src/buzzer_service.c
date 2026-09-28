@@ -23,6 +23,7 @@
 #include "buzzer.h"
 #include "queue.h"
 #include "task.h"
+#include "telemetry_service.h"
 
 #define BUZZER_TASK_PRIORITY    (tskIDLE_PRIORITY + 1U)
 #define BUZZER_STACK_WORDS      configMINIMAL_STACK_SIZE
@@ -68,7 +69,10 @@ BaseType_t BuzzerService_Init(void) {
     buzzerTaskStack,
     &buzzerTaskControlBlock
   );
-  return (task != NULL) ? pdPASS : pdFAIL;
+  if (task == NULL)
+    return pdFAIL;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_BUZZER, task);
+  return pdPASS;
 }
 
 void BuzzerService_Alert(void) {

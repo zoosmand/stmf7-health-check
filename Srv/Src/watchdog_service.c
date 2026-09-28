@@ -21,6 +21,7 @@
 #include "watchdog_service.h"
 
 #include "common.h"
+#include "telemetry_service.h"
 #include "task.h"
 
 #define WATCHDOG_TASK_PRIORITY (configMAX_PRIORITIES - 1U)
@@ -43,7 +44,10 @@ BaseType_t WatchdogService_Init(void) {
     watchdogTaskStack,
     &watchdogTaskControlBlock
   );
-  return (task != NULL) ? pdPASS : pdFAIL;
+  if (task == NULL)
+    return pdFAIL;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_WATCHDOG, task);
+  return pdPASS;
 }
 
 /**
