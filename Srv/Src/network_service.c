@@ -22,6 +22,7 @@
 
 #include "common.h"
 #include "network_interface.h"
+#include "telemetry_service.h"
 
 #include "lwip/dhcp.h"
 #include "lwip/dns.h"
@@ -72,7 +73,10 @@ BaseType_t NetworkService_Init(void) {
     networkTaskStack,
     &networkTaskControlBlock
   );
-  return (task != NULL) ? pdPASS : pdFAIL;
+  if (task == NULL)
+    return pdFAIL;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_NETWORK, task);
+  return pdPASS;
 }
 
 uint8_t NetworkService_IsReady(void) {

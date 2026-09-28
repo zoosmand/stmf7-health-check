@@ -61,6 +61,7 @@ Srv/Src/health_check_config.c \
 Srv/Src/health_check_log.c \
 Srv/Src/health_check_service.c \
 Srv/Src/network_service.c \
+Srv/Src/telemetry_service.c \
 Srv/Src/time_service.c \
 Srv/Src/user_store.c \
 Srv/Src/watchdog_service.c \

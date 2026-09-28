@@ -24,6 +24,7 @@
 #include "common.h"
 #include "flash_layout.h"
 #include "task.h"
+#include "telemetry_service.h"
 #include "user_button.h"
 
 #define FACTORY_RESET_TASK_PRIORITY  (configMAX_PRIORITIES - 2U)
@@ -81,7 +82,10 @@ BaseType_t FactoryResetService_Init(void) {
     factoryResetTaskStack,
     &factoryResetTaskControlBlock
   );
-  return (task != NULL) ? pdPASS : pdFAIL;
+  if (task == NULL)
+    return pdFAIL;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_FACTORY_RESET, task);
+  return pdPASS;
 }
 
 static void factoryResetService_Task(void* argument) {

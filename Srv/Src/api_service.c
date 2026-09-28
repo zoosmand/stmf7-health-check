@@ -23,6 +23,7 @@
 #include "FreeRTOS.h"
 #include "auth_service.h"
 #include "callback_config.h"
+#include "callback_service.h"
 #include "health_check_config.h"
 #include "health_check_log.h"
 #include "network_service.h"
@@ -36,6 +37,7 @@
 #include "mbedtls/ssl.h"
 #include "mbedtls/x509_crt.h"
 #include "task.h"
+#include "telemetry_service.h"
 #include "time_service.h"
 #include "tls_platform.h"
 #include "tls_server_credentials.h"
@@ -744,6 +746,55 @@ static int apiService_Dispatch(
       utc.tm_min,
       utc.tm_sec
     );
+    return apiService_Respond(ssl, 200, "OK", json);
+  }
+
+  if ((strcmp(request->method, "GET") == 0)
+      && (strcmp(request->path, "/api/v1/system/telemetry") == 0)) {
+    TelemetryService_SnapshotTypeDef telemetry;
+    CallbackService_TelemetryTypeDef callback;
+    TelemetryService_GetSnapshot(&telemetry);
+    CallbackService_GetTelemetry(&callback);
+    char json[1024];
+    int length = snprintf(
+      json, sizeof(json),
+      "{\"uptime_ms\":%lu,\"dynamic_allocation\":false,\"tasks\":{"
+      "\"heartbeat\":{\"stack_min_free_bytes\":%lu},"
+      "\"watchdog\":{\"stack_min_free_bytes\":%lu},"
+      "\"factory_reset\":{\"stack_min_free_bytes\":%lu},"
+      "\"network\":{\"stack_min_free_bytes\":%lu},"
+      "\"time\":{\"stack_min_free_bytes\":%lu},"
+      "\"buzzer\":{\"stack_min_free_bytes\":%lu},"
+      "\"health_check\":{\"stack_min_free_bytes\":%lu},"
+      "\"callback\":{\"stack_min_free_bytes\":%lu},"
+      "\"api\":{\"stack_min_free_bytes\":%lu}},"
+      "\"callback\":{\"queue_depth\":%u,\"dropped_count\":%lu,"
+      "\"delivery_success_count\":%lu,\"delivery_failure_count\":%lu,"
+      "\"last_transport_status\":%u,\"last_http_status\":%u,"
+      "\"last_elapsed_ms\":%lu,\"last_detail\":%ld}}",
+      (unsigned long)telemetry.uptimeMs,
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_HEARTBEAT],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_WATCHDOG],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_FACTORY_RESET],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_NETWORK],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_TIME],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_BUZZER],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_HEALTH_CHECK],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_CALLBACK],
+      (unsigned long)telemetry.stackMinFreeBytes[TELEMETRY_TASK_API],
+      (unsigned int)callback.queueDepth,
+      (unsigned long)callback.droppedCount,
+      (unsigned long)callback.deliverySuccessCount,
+      (unsigned long)callback.deliveryFailureCount,
+      (unsigned int)callback.lastTransportStatus,
+      (unsigned int)callback.lastHttpStatus,
+      (unsigned long)callback.lastElapsedMs,
+      (long)callback.lastDetail
+    );
+    if ((length <= 0) || ((size_t)length >= sizeof(json)))
+      return apiService_Error(
+        ssl, 500, "Internal Server Error", "response_too_large"
+      );
     return apiService_Respond(ssl, 200, "OK", json);
   }
 
@@ -1566,7 +1617,7 @@ static void apiService_Task(void* argument) {
 }
 
 HealthCheck_StatusTypeDef ApiService_Init(void) {
-  return (xTaskCreateStatic(
+  TaskHandle_t task = xTaskCreateStatic(
     apiService_Task,
     "api",
     API_SERVICE_TASK_STACK_DEPTH,
@@ -1574,5 +1625,9 @@ HealthCheck_StatusTypeDef ApiService_Init(void) {
     tskIDLE_PRIORITY + 1U,
     apiTaskStack,
     &apiTaskControlBlock
-  ) != NULL) ? HEALTH_CHECK_STATUS_OK : HEALTH_CHECK_STATUS_ERROR;
+  );
+  if (task == NULL)
+    return HEALTH_CHECK_STATUS_ERROR;
+  TelemetryService_RegisterTask(TELEMETRY_TASK_API, task);
+  return HEALTH_CHECK_STATUS_OK;
 }

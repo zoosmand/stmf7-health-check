@@ -37,6 +37,7 @@ Project documentation:
 - persistent HTTPS resource configuration and wear-aware result log
 - periodic authenticated HTTP `HEAD` checks
 - asynchronous configurable HTTPS callbacks for failed checks
+- authenticated runtime telemetry for task stacks and callback delivery
 - TIM2/PA3 buzzer alert on failed resource checks
 - power-loss-safe factory reset by holding the B1 user button
 - TLS 1.3 management API with bearer-token authentication
@@ -225,6 +226,28 @@ Content-Type: application/json
 The selected trust anchor cannot be deleted or reset while callback delivery
 is enabled. Factory reset erases both callback configuration sectors.
 
+### Runtime telemetry
+
+Any authenticated user can read non-persistent MCU telemetry:
+
+```http
+GET /api/v1/system/telemetry
+Authorization: Bearer <access-token>
+```
+
+The response reports `uptime_ms`, minimum-ever unused stack space in bytes for
+each registered application task, and callback queue/delivery counters. A task
+stack value of zero means the task was not registered when the snapshot was
+taken. Callback delivery succeeds only when its TLS transport completes and
+the receiver returns an HTTP status from 200 through 299. The last callback
+diagnostic fields remain zero until the first delivery attempt. Counters are
+unsigned 32-bit runtime values and reset when the MCU restarts.
+
+`dynamic_allocation` is always `false`: this firmware uses statically allocated
+FreeRTOS objects and has no FreeRTOS heap, so free-heap telemetry would be
+misleading. CPU utilization and calibrated internal temperature/supply
+measurements are not collected.
+
 The device listens on TCP port `443` after networking and TLS storage are
 ready. Its compiled recovery certificate is self-signed, so development clients
 must explicitly trust it or disable verification only for isolated testing.
@@ -254,6 +277,7 @@ invalidates all sessions.
 | `POST` | `/api/v1/auth/refresh` | Refresh token in JSON | Rotate both tokens. |
 | `POST` | `/api/v1/auth/revoke` | Bearer | Revoke the current session. |
 | `GET` | `/api/v1/rtc` | Any bearer | Return synchronized Unix time and UTC date/time. |
+| `GET` | `/api/v1/system/telemetry` | Any bearer | Return uptime, task stack headroom, and callback counters. |
 | `GET` | `/api/v1/callback/config` | Any bearer | Read outbound callback configuration. |
 | `PUT` | `/api/v1/callback/config` | Administrator bearer | Partially update callback configuration. |
 | `GET`, `POST` | `/api/v1/users` | Administrator bearer | List or create users. |
