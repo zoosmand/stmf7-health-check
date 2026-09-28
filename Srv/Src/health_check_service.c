@@ -23,6 +23,8 @@
 #include "FreeRTOS.h"
 #include "api_service.h"
 #include "buzzer_service.h"
+#include "callback_config.h"
+#include "callback_service.h"
 #include "health_check_config.h"
 #include "health_check_log.h"
 #include "common.h"
@@ -128,7 +130,15 @@ static void healthCheckService_CheckResource(
   if (resourceHealthy == 0U)
     BuzzerService_Alert();
 
-  (void)HealthCheckLog_Append(index, &result);
+  HealthCheckLog_EntryTypeDef logEntry;
+  HealthCheck_StatusTypeDef logStatus = HealthCheckLog_Append(
+    index, &result, &logEntry
+  );
+  if (logStatus != HEALTH_CHECK_STATUS_OK) {
+    Common_Printf("Health check log append failed; callback skipped.\r\n");
+  } else if (resourceHealthy == 0U) {
+    CallbackService_Enqueue(&logEntry);
+  }
 }
 
 static void healthCheckService_Task(void* argument) {
@@ -136,9 +146,11 @@ static void healthCheckService_Task(void* argument) {
 
   if ((TlsPlatform_Init() != HEALTH_CHECK_STATUS_OK)
       || (TlsTrustStore_Init() != HEALTH_CHECK_STATUS_OK)
+      || (CallbackConfig_Init() != HEALTH_CHECK_STATUS_OK)
       || (HealthCheckConfig_Init() != HEALTH_CHECK_STATUS_OK)
       || (HealthCheckLog_Init() != HEALTH_CHECK_STATUS_OK)
       || (TlsServerCredentials_Init() != HEALTH_CHECK_STATUS_OK)
+      || (CallbackService_Init() != HEALTH_CHECK_STATUS_OK)
       || (ApiService_Init() != HEALTH_CHECK_STATUS_OK)) {
     System_ErrorHandler();
   }

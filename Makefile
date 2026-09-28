@@ -54,6 +54,8 @@ Srv/Src/heart_beat.c \
 Srv/Src/api_service.c \
 Srv/Src/auth_service.c \
 Srv/Src/buzzer_service.c \
+Srv/Src/callback_config.c \
+Srv/Src/callback_service.c \
 Srv/Src/factory_reset_service.c \
 Srv/Src/health_check_config.c \
 Srv/Src/health_check_log.c \

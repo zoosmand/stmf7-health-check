@@ -59,12 +59,15 @@ HealthCheck_StatusTypeDef HealthCheckLog_Init(void);
   * @param resourceIndex (uint8_t) Configured resource slot this check ran
   *        against.
   * @param result (const TlsTransport_ResultTypeDef*) Non-null check result.
+  * @param entry (HealthCheckLog_EntryTypeDef*) Non-null output containing the
+  *        exact record written and verified.
   * @retval (HealthCheck_StatusTypeDef) HEALTH_CHECK_STATUS_OK when the record was written and
   *         verified.
   */
 HealthCheck_StatusTypeDef HealthCheckLog_Append(
   uint8_t resourceIndex,
-  const TlsTransport_ResultTypeDef* result
+  const TlsTransport_ResultTypeDef* result,
+  HealthCheckLog_EntryTypeDef* entry
 );
 
 /**

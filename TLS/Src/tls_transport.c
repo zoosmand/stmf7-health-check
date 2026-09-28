@@ -37,11 +37,17 @@
 
 #define TLS_TRANSPORT_TIMEOUT_MS       10000
 #define TLS_TRANSPORT_STATUS_LINE_SIZE 128U
+#define TLS_TRANSPORT_REQUEST_SIZE     512U
+#define TLS_TRANSPORT_HOST_HEADER_SIZE 70U
 
 typedef struct {
   int socketDescriptor;
   int lastError;
 } TlsTransport_SocketContextTypeDef;
+
+/* Protected by TlsPlatform_Lock for every transport operation. */
+static char tlsTransport_RequestBuffer[TLS_TRANSPORT_REQUEST_SIZE];
+static char tlsTransport_HostHeader[TLS_TRANSPORT_HOST_HEADER_SIZE];
 
 static uint8_t tlsTransport_IsTimeoutError(int socketError) {
   return ((socketError == EAGAIN)
@@ -237,15 +243,23 @@ static int tlsTransport_ReadStatus(
   return 0;
 }
 
-TlsTransport_StatusTypeDef TlsTransport_Head(
+TlsTransport_StatusTypeDef TlsTransport_Request(
+  const char* method,
   const char* host,
   uint16_t port,
   const char* resource,
   uint8_t trustAnchorId,
+  const char* body,
+  const char* contentType,
   TlsTransport_ResultTypeDef* result
 ) {
-  if ((host == NULL) || (resource == NULL) || (result == NULL))
+  if ((method == NULL) || (host == NULL) || (resource == NULL)
+      || (body == NULL) || (result == NULL) || (port == 0U)
+      || (resource[0] != '/')
+      || ((strcmp(method, "HEAD") != 0) && (strcmp(method, "GET") != 0)
+          && (strcmp(method, "POST") != 0))) {
     return TLS_TRANSPORT_CONFIG_ERROR;
+  }
 
   memset(result, 0, sizeof(*result));
   result->status = TLS_TRANSPORT_CONFIG_ERROR;
@@ -352,34 +366,45 @@ TlsTransport_StatusTypeDef TlsTransport_Head(
   result->tlsVersion = mbedtls_ssl_get_version(&ssl);
   result->cipherSuite = mbedtls_ssl_get_ciphersuite(&ssl);
 
-  char request[256];
+  char* hostHeader = tlsTransport_HostHeader;
+  int hostHeaderLength = (port == 443U)
+    ? snprintf(hostHeader, TLS_TRANSPORT_HOST_HEADER_SIZE, "%s", host)
+    : snprintf(
+        hostHeader, TLS_TRANSPORT_HOST_HEADER_SIZE,
+        "%s:%u", host, (unsigned int)port
+      );
+  if ((hostHeaderLength <= 0)
+      || ((size_t)hostHeaderLength >= TLS_TRANSPORT_HOST_HEADER_SIZE)) {
+    detail = MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+    goto cleanup;
+  }
+
+  char* request = tlsTransport_RequestBuffer;
+  size_t bodyLength = strlen(body);
   int requestLength;
-  if (port == 443U) {
+  if (bodyLength != 0U) {
+    if ((strcmp(method, "POST") != 0) || (contentType == NULL)) {
+      detail = MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+      goto cleanup;
+    }
     requestLength = snprintf(
-      request,
-      sizeof(request),
-      "HEAD %s HTTP/1.1\r\n"
-      "Host: %s\r\n"
-      "Connection: close\r\n"
-      "User-Agent: stm32-health-check/1\r\n\r\n",
-      resource,
-      host
+      request, TLS_TRANSPORT_REQUEST_SIZE,
+      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n"
+      "User-Agent: stm32-health-check/1\r\nContent-Type: %s\r\n"
+      "Content-Length: %lu\r\n\r\n%s",
+      method, resource, hostHeader, contentType,
+      (unsigned long)bodyLength, body
     );
   } else {
     requestLength = snprintf(
-      request,
-      sizeof(request),
-      "HEAD %s HTTP/1.1\r\n"
-      "Host: %s:%u\r\n"
-      "Connection: close\r\n"
+      request, TLS_TRANSPORT_REQUEST_SIZE,
+      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n"
       "User-Agent: stm32-health-check/1\r\n\r\n",
-      resource,
-      host,
-      (unsigned int)port
+      method, resource, hostHeader
     );
   }
   if ((requestLength <= 0)
-      || ((size_t)requestLength >= sizeof(request))) {
+      || ((size_t)requestLength >= TLS_TRANSPORT_REQUEST_SIZE)) {
     detail = MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
     goto cleanup;
   }
@@ -418,4 +443,16 @@ cleanup:
   mbedtls_entropy_free(&entropy);
   TlsPlatform_Unlock();
   return result->status;
+}
+
+TlsTransport_StatusTypeDef TlsTransport_Head(
+  const char* host,
+  uint16_t port,
+  const char* resource,
+  uint8_t trustAnchorId,
+  TlsTransport_ResultTypeDef* result
+) {
+  return TlsTransport_Request(
+    "HEAD", host, port, resource, trustAnchorId, "", NULL, result
+  );
 }

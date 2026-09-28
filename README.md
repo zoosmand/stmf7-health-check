@@ -36,6 +36,7 @@ Project documentation:
 - Mbed TLS 3.6.7 with hardware-RNG entropy and TLS 1.3-only policy
 - persistent HTTPS resource configuration and wear-aware result log
 - periodic authenticated HTTP `HEAD` checks
+- asynchronous configurable HTTPS callbacks for failed checks
 - TIM2/PA3 buzzer alert on failed resource checks
 - power-loss-safe factory reset by holding the B1 user button
 - TLS 1.3 management API with bearer-token authentication
@@ -176,6 +177,52 @@ present so startup can retry safely.
 
 ## Management API
 
+### Outbound failure callbacks
+
+Callback delivery is disabled by default and initially targets
+`https://loopback.intraclear.com/`. A dedicated static FreeRTOS task consumes a
+three-entry queue, so DNS, TCP, and TLS callback delays never block periodic
+health checks. If the queue fills, the oldest pending result is discarded and
+the newest result is retained.
+
+Only failed health checks trigger a callback. Each failure is persisted before
+it is queued; if the log write cannot be verified, the callback is skipped.
+POST sends the exact persisted diagnostic values plus a readable transport
+stage:
+
+```json
+{"sequence":8285,"timestamp":1790498283,"resource_index":2,"status":"fail","stage":"ok","http_status":503,"elapsed_ms":1260,"detail":1001}
+```
+
+GET appends the same eight values as query parameters. `resource_index` is the
+zero-based configured slot. `stage` is `ok`, `dns_error`, `connect_error`,
+`config_error`, `certificate_error`, `handshake_error`, `io_error`, or
+`protocol_error`. An unexpected HTTP response such as 503 has stage `ok`
+because the transport itself completed successfully. Callback configuration
+uses two transactional 4 KiB NOR sectors. Runtime resources are a three-entry
+static queue, an 8 KiB callback-task stack, and bounded 192-byte body,
+256-byte request-target, and 512-byte HTTP request buffers.
+
+Read the current configuration:
+
+```http
+GET /api/v1/callback/config
+Authorization: Bearer <access-token>
+```
+
+Partially update it with an administrator token:
+
+```http
+PUT /api/v1/callback/config
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"enabled":true,"method":"POST","host":"loopback.intraclear.com","port":443,"path":"/","trust_anchor_id":1}
+```
+
+The selected trust anchor cannot be deleted or reset while callback delivery
+is enabled. Factory reset erases both callback configuration sectors.
+
 The device listens on TCP port `443` after networking and TLS storage are
 ready. Its compiled recovery certificate is self-signed, so development clients
 must explicitly trust it or disable verification only for isolated testing.
@@ -205,6 +252,8 @@ invalidates all sessions.
 | `POST` | `/api/v1/auth/refresh` | Refresh token in JSON | Rotate both tokens. |
 | `POST` | `/api/v1/auth/revoke` | Bearer | Revoke the current session. |
 | `GET` | `/api/v1/rtc` | Any bearer | Return synchronized Unix time and UTC date/time. |
+| `GET` | `/api/v1/callback/config` | Any bearer | Read outbound callback configuration. |
+| `PUT` | `/api/v1/callback/config` | Administrator bearer | Partially update callback configuration. |
 | `GET`, `POST` | `/api/v1/users` | Administrator bearer | List or create users. |
 | `PUT`, `DELETE` | `/api/v1/users/{username}` | Administrator bearer | Update or delete a user. |
 | `PUT` | `/api/v1/tls/certificate` | Administrator bearer | Stage a DER server certificate. |
