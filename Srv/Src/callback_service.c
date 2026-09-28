@@ -131,10 +131,15 @@ void CallbackService_Enqueue(const HealthCheckLog_EntryTypeDef* entry) {
   if ((callbackQueue == NULL) || (entry == NULL))
     return;
   CallbackService_EventTypeDef event = *entry;
+  uint8_t dropped = 0U;
+  taskENTER_CRITICAL();
   if (xQueueSendToBack(callbackQueue, &event, 0U) != pdTRUE) {
     CallbackService_EventTypeDef discarded;
     (void)xQueueReceive(callbackQueue, &discarded, 0U);
     (void)xQueueSendToBack(callbackQueue, &event, 0U);
-    Common_Printf("Callback: queue full; dropping oldest result.\r\n");
+    dropped = 1U;
   }
+  taskEXIT_CRITICAL();
+  if (dropped != 0U)
+    Common_Printf("Callback: queue full; dropping oldest result.\r\n");
 }

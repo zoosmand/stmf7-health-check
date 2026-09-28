@@ -253,16 +253,18 @@ TlsTransport_StatusTypeDef TlsTransport_Request(
   const char* contentType,
   TlsTransport_ResultTypeDef* result
 ) {
+  if (result == NULL)
+    return TLS_TRANSPORT_CONFIG_ERROR;
+  memset(result, 0, sizeof(*result));
+  result->status = TLS_TRANSPORT_CONFIG_ERROR;
   if ((method == NULL) || (host == NULL) || (resource == NULL)
-      || (body == NULL) || (result == NULL) || (port == 0U)
+      || (body == NULL) || (port == 0U)
       || (resource[0] != '/')
       || ((strcmp(method, "HEAD") != 0) && (strcmp(method, "GET") != 0)
           && (strcmp(method, "POST") != 0))) {
     return TLS_TRANSPORT_CONFIG_ERROR;
   }
 
-  memset(result, 0, sizeof(*result));
-  result->status = TLS_TRANSPORT_CONFIG_ERROR;
   uint32_t started = TimeService_GetUptimeMs();
   if (TlsPlatform_Lock() != HEALTH_CHECK_STATUS_OK)
     return result->status;

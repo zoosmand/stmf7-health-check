@@ -267,7 +267,19 @@ static uint8_t apiService_JsonHasKey(const char* json, const char* key) {
   char pattern[40];
   if (snprintf(pattern, sizeof(pattern), "\"%s\"", key) <= 0)
     return 0U;
-  return strstr(json, pattern) != NULL ? 1U : 0U;
+  size_t patternLength = strlen(pattern);
+  const char* cursor = json;
+  while ((cursor = strstr(cursor, pattern)) != NULL) {
+    const char* separator = cursor + patternLength;
+    while ((*separator == ' ') || (*separator == '\t')
+        || (*separator == '\r') || (*separator == '\n')) {
+      ++separator;
+    }
+    if (*separator == ':')
+      return 1U;
+    cursor += patternLength;
+  }
+  return 0U;
 }
 
 static uint8_t apiService_JsonBoolean(
@@ -1113,7 +1125,8 @@ static int apiService_Dispatch(
       return apiService_Error(ssl, 400, "Bad Request", "invalid_port");
     if ((trustAnchor < TLS_TRUST_STORE_MIN_ID)
         || (trustAnchor > TLS_TRUST_STORE_MAX_PERSISTED)
-        || (TlsTrustStore_Exists((uint8_t)trustAnchor) == 0U)) {
+        || ((enabled != 0U)
+          && (TlsTrustStore_Exists((uint8_t)trustAnchor) == 0U))) {
       return apiService_Error(
         ssl, 400, "Bad Request", "invalid_trust_anchor"
       );
@@ -1125,8 +1138,12 @@ static int apiService_Dispatch(
     config.trustAnchorId = (uint8_t)trustAnchor;
     memcpy(config.host, host, sizeof(config.host));
     memcpy(config.path, path, sizeof(config.path));
-    if (CallbackConfig_Set(&config) != HEALTH_CHECK_STATUS_OK)
+    if (CallbackConfig_IsValid(&config) == 0U)
       return apiService_Error(ssl, 400, "Bad Request", "invalid_request");
+    if (CallbackConfig_Set(&config) != HEALTH_CHECK_STATUS_OK)
+      return apiService_Error(
+        ssl, 500, "Internal Server Error", "storage_error"
+      );
     return apiService_Respond(ssl, 200, "OK", "{\"updated\":true}");
   }
 

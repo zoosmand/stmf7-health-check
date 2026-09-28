@@ -42,6 +42,13 @@ HealthCheck_StatusTypeDef CallbackConfig_Init(void);
 void CallbackConfig_Get(CallbackConfig_TypeDef* config);
 
 /**
+  * @brief Validate a complete callback configuration without persisting it.
+  * @param config (const CallbackConfig_TypeDef*) Candidate configuration.
+  * @retval (uint8_t) Nonzero when every field and encoded target fit.
+  */
+uint8_t CallbackConfig_IsValid(const CallbackConfig_TypeDef* config);
+
+/**
   * @brief Validate and transactionally persist a complete configuration.
   * @param config (const CallbackConfig_TypeDef*) Non-null candidate.
   * @retval (HealthCheck_StatusTypeDef) OK after verified persistent storage.

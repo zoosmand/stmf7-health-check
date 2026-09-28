@@ -180,10 +180,12 @@ present so startup can retry safely.
 ### Outbound failure callbacks
 
 Callback delivery is disabled by default and initially targets
-`https://loopback.intraclear.com/`. A dedicated static FreeRTOS task consumes a
-three-entry queue, so DNS, TCP, and TLS callback delays never block periodic
-health checks. If the queue fills, the oldest pending result is discarded and
-the newest result is retained.
+`https://callback.invalid/`. A dedicated static FreeRTOS task consumes a
+three-entry queue, so adding a failed result never blocks the health-check
+producer. Delivery shares the serialized TLS platform with health checks and
+the management API, so a slow callback can delay later TLS operations. If the
+queue fills, the oldest pending result is discarded and the newest result is
+retained.
 
 Only failed health checks trigger a callback. Each failure is persisted before
 it is queued; if the log write cannot be verified, the callback is skipped.

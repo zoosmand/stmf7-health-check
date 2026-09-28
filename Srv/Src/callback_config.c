@@ -80,7 +80,7 @@ static uint32_t callbackConfig_Crc(const void* data, size_t length) {
 }
 
 /** @brief Validate fields and the maximum fully encoded GET target. */
-static uint8_t callbackConfig_FieldsValid(
+uint8_t CallbackConfig_IsValid(
   const CallbackConfig_TypeDef* config
 ) {
   if (!((config != NULL) && (config->enabled <= 1U)
@@ -109,7 +109,7 @@ static uint8_t callbackConfig_IsValid(
 ) {
   return ((candidate->magic == CALLBACK_CONFIG_MAGIC)
       && (candidate->version == CALLBACK_CONFIG_VERSION)
-      && (callbackConfig_FieldsValid(&candidate->config) != 0U)
+      && (CallbackConfig_IsValid(&candidate->config) != 0U)
       && (candidate->crc == callbackConfig_Crc(
         candidate, offsetof(CallbackConfig_SnapshotTypeDef, crc)
       ))) ? 1U : 0U;
@@ -173,7 +173,7 @@ HealthCheck_StatusTypeDef CallbackConfig_Init(void) {
   snapshot.config.port = 443U;
   snapshot.config.trustAnchorId = TLS_TRUST_STORE_MIN_ID;
   (void)strncpy(
-    snapshot.config.host, "loopback.intraclear.com",
+    snapshot.config.host, "callback.invalid",
     sizeof(snapshot.config.host) - 1U
   );
   (void)strncpy(
@@ -196,7 +196,7 @@ void CallbackConfig_Get(CallbackConfig_TypeDef* config) {
 HealthCheck_StatusTypeDef CallbackConfig_Set(
   const CallbackConfig_TypeDef* config
 ) {
-  if (callbackConfig_FieldsValid(config) == 0U)
+  if (CallbackConfig_IsValid(config) == 0U)
     return HEALTH_CHECK_STATUS_ERROR;
   if (xSemaphoreTake(configMutex, portMAX_DELAY) != pdTRUE)
     return HEALTH_CHECK_STATUS_ERROR;

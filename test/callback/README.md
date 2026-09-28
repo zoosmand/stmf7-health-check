@@ -1,7 +1,7 @@
 # Outbound callback regression checklist
 
 1. After factory reset, confirm `GET /api/v1/callback/config` reports callback
-   delivery disabled and the default `loopback.intraclear.com:443/` target.
+   delivery disabled and the default `callback.invalid:443/` target.
 2. Install the callback server's CA as a trust anchor and enable POST delivery.
    Confirm successful checks do not invoke it and each failed check produces
    JSON containing `sequence`, `timestamp`, `resource_index`, `status`,
@@ -12,9 +12,10 @@
    descriptive `stage`, while unexpected HTTP status codes have stage `ok`.
    Confirm absent HTTP responses report `http_status=0` and that `sequence`
    and `timestamp` match the persisted log entry.
-5. Delay callback responses while checks continue. Confirm the health-check
-   task continues logging results and the callback queue drops the oldest
-   pending event after three entries.
+5. Delay callback responses and confirm failure enqueueing remains immediate.
+   Confirm later health checks and management requests resume after the shared
+   TLS operation completes, and that queue overflow retains the newest three
+   pending failures.
 6. Keep a management TLS request active while a callback is pending. Confirm
    both operations finish without concurrent Mbed TLS allocator access.
 7. Try invalid method, host, port, path, trust-anchor ID, and oversized encoded
