@@ -25,6 +25,7 @@
 #include "health_check_config.h"
 #include "health_check_log.h"
 #include "network_service.h"
+#include "lwip/def.h"
 #include "lwip/sockets.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
@@ -192,19 +193,33 @@ static int apiService_ReadRequest(
   if (sscanf(buffer, "%7s %79s", request->method, request->path) != 2)
     return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
   request->authorization[0] = '\0';
-  char* bearer = strstr(buffer, "\r\nAuthorization: Bearer ");
-  if (bearer == NULL)
-    bearer = strstr(buffer, "\r\nauthorization: Bearer ");
-  if (bearer != NULL) {
-    bearer += 24U;
-    char* end = strstr(bearer, "\r\n");
-    size_t length = (end != NULL)
-      ? (size_t)(end - bearer)
-      : strlen(bearer);
-    if (length >= sizeof(request->authorization))
-      return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
-    memcpy(request->authorization, bearer, length);
-    request->authorization[length] = '\0';
+  char* line = strstr(buffer, "\r\n");
+  while (line != NULL) {
+    line += 2U;
+    if (lwip_strnicmp(line, "Authorization:", 14U) == 0) {
+      char* value = line + 14U;
+      while ((*value == ' ') || (*value == '\t'))
+        ++value;
+      if ((lwip_strnicmp(value, "Bearer", 6U) != 0)
+          || ((value[6] != ' ') && (value[6] != '\t'))) {
+        break;
+      }
+      value += 6U;
+      while ((*value == ' ') || (*value == '\t'))
+        ++value;
+      char* end = strstr(value, "\r\n");
+      if (end == NULL)
+        end = headerEnd;
+      while ((end > value) && ((end[-1] == ' ') || (end[-1] == '\t')))
+        --end;
+      size_t length = (size_t)(end - value);
+      if (length >= sizeof(request->authorization))
+        return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+      memcpy(request->authorization, value, length);
+      request->authorization[length] = '\0';
+      break;
+    }
+    line = strstr(line, "\r\n");
   }
   *headerEnd = saved;
   request->body = headerEnd + 4U;

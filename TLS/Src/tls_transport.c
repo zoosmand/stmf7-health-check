@@ -352,7 +352,7 @@ TlsTransport_StatusTypeDef TlsTransport_Head(
   result->tlsVersion = mbedtls_ssl_get_version(&ssl);
   result->cipherSuite = mbedtls_ssl_get_ciphersuite(&ssl);
 
-  char request[320];
+  char request[256];
   int requestLength;
   if (port == 443U) {
     requestLength = snprintf(
