@@ -44,19 +44,25 @@ void Buzzer_Init(void) {
 
   uint32_t prescaler =
     (systemClocks.pclk1TimerHz / BUZZER_TIMER_TICK_HZ) - 1U;
-  uint32_t period = (BUZZER_TIMER_TICK_HZ / BUZZER_TONE_HZ) - 1U;
-
   TIM2->CR1 = 0U;
   TIM2->CCER = 0U;
   TIM2->PSC = prescaler;
-  TIM2->ARR = period;
-  TIM2->CCR4 = (period + 1U) / 2U;
+  Buzzer_SetFrequency(BUZZER_TONE_HZ);
   MODIFY_REG(
     TIM2->CCMR2,
     TIM_CCMR2_OC4M | TIM_CCMR2_OC4PE,
     TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4M_2 | TIM_CCMR2_OC4PE
   );
   SET_BIT(TIM2->CR1, TIM_CR1_ARPE);
+  SET_BIT(TIM2->EGR, TIM_EGR_UG);
+}
+
+void Buzzer_SetFrequency(uint32_t frequencyHz) {
+  if ((frequencyHz == 0U) || (frequencyHz > BUZZER_TIMER_TICK_HZ))
+    return;
+  uint32_t period = (BUZZER_TIMER_TICK_HZ / frequencyHz) - 1U;
+  TIM2->ARR = period;
+  TIM2->CCR4 = (period + 1U) / 2U;
   SET_BIT(TIM2->EGR, TIM_EGR_UG);
 }
 

@@ -15,90 +15,6 @@
       }
     ]
   },
-  "variable": [
-    {
-      "key": "trustAnchorDerPath",
-      "value": "TLS/CA/ISRG_Root_X1.der"
-    },
-    {
-      "key": "certificateDerPath",
-      "value": "TLS/Private/management_server.crt.der"
-    },
-    {
-      "key": "privateKeyDerPath",
-      "value": "TLS/Private/management_server.key.der"
-    },
-    {
-      "key": "healthCheckPort",
-      "value": "443"
-    },
-    {
-      "key": "healthCheckPeriodSeconds",
-      "value": "60"
-    },
-    {
-      "key": "healthCheckHost",
-      "value": "example.com"
-    },
-    {
-      "key": "healthCheckPath",
-      "value": "/health"
-    },
-    {
-      "key": "healthCheckEnabled",
-      "value": "false"
-    },
-    {
-      "key": "callbackEnabled",
-      "value": "false"
-    },
-    {
-      "key": "callbackMethod",
-      "value": "POST"
-    },
-    {
-      "key": "callbackHost",
-      "value": "loopback.intraclear.com"
-    },
-    {
-      "key": "callbackPort",
-      "value": "443"
-    },
-    {
-      "key": "callbackPath",
-      "value": "/"
-    },
-    {
-      "key": "callbackTrustAnchorId",
-      "value": "1"
-    },
-    {
-      "key": "trustAnchorId",
-      "value": ""
-    },
-    {
-      "key": "resourceIndex",
-      "value": ""
-    },
-    {
-      "key": "managedUsername",
-      "value": "operator",
-      "description": "Account managed by user-administration requests; not used for collection authentication"
-    },
-    {
-      "key": "managedPassword",
-      "value": "",
-      "type": "secret"
-    },
-    {
-      "key": "managedRole",
-      "value": "user"
-    },
-    {
-      "key": "managedEnabled",
-      "value": "true"
-    }
-  ],
   "item": [
     {
       "name": "Status",
@@ -133,6 +49,131 @@
             },
             "auth": {
               "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Head device health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Device is operational\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"JSON representation headers are returned\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"application/json\");",
+                  "  pm.expect(Number(pm.response.headers.get(\"Content-Length\"))).to.be.above(0);",
+                  "});",
+                  "pm.test(\"HEAD response has no body\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "HEAD",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Buzzer",
+      "item": [
+        {
+          "name": "Test health-check alert",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Health-check alert queued\", () => pm.response.to.have.status(202));",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.queued).to.eql(true);",
+                  "pm.expect(body.resource_index).to.eql(Number(pm.environment.get(\"buzzerResourceIndex\")));",
+                  "pm.expect(body.resource_id).to.eql(Number(pm.environment.get(\"buzzerResourceIndex\")) + 1);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"resource_index\": {{buzzerResourceIndex}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buzzer/health-check-alert",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "buzzer", "health-check-alert"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test certificate-expiry alert",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Certificate-expiry alert queued\", () => pm.response.to.have.status(202));",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.queued).to.eql(true);",
+                  "pm.expect(body.resource_index).to.eql(Number(pm.environment.get(\"buzzerResourceIndex\")));",
+                  "pm.expect(body.resource_id).to.eql(Number(pm.environment.get(\"buzzerResourceIndex\")) + 1);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"resource_index\": {{buzzerResourceIndex}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/buzzer/certificate-expiry-alert",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "buzzer", "certificate-expiry-alert"]
             }
           },
           "response": []
@@ -594,7 +635,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"path\": \"{{healthCheckPath}}\",\n    \"enabled\": {{healthCheckEnabled}},\n    \"trust_anchor_id\": {{trustAnchorId}}\n}",
+                  "raw": "{\n    \"port\": {{healthCheckPort}},\n    \"path\": \"{{healthCheckPath}}\",\n    \"enabled\": {{healthCheckEnabled}},\n    \"trust_anchor_id\": {{trustAnchorId}}\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -654,6 +695,32 @@
         },
         {
           "name": "Get health-check logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Health-check logs returned\", () => pm.response.to.have.status(200));",
+                  "const logs = pm.response.json().logs;",
+                  "pm.expect(logs).to.be.an(\"array\");",
+                  "logs.forEach((entry) => {",
+                  "  pm.expect(entry.certificate).to.have.all.keys(\"expiring_date\", \"days_left\", \"anchor_id\", \"expiring\", \"expired\");",
+                  "  pm.expect(entry.certificate.anchor_id).to.be.a(\"number\");",
+                  "  pm.expect(entry.certificate.expiring).to.be.a(\"boolean\");",
+                  "  pm.expect(entry.certificate.expired).to.be.a(\"boolean\");",
+                  "  pm.expect(entry.certificate.expiring && entry.certificate.expired).to.eql(false);",
+                  "  if (entry.certificate.expiring_date === null) {",
+                  "    pm.expect(entry.certificate.days_left).to.eql(null);",
+                  "  } else {",
+                  "    pm.expect(entry.certificate.expiring_date).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/);",
+                  "    pm.expect(entry.certificate.days_left).to.be.a(\"number\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],

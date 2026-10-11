@@ -43,9 +43,45 @@
 #define HEALTH_CHECK_TASK_STACK_DEPTH 2048U
 #define HEALTH_CHECK_WAIT_MS          1000U
 #define HEALTH_CHECK_OK_STATUS        200U
+#define CERTIFICATE_WARNING_WINDOW_SECONDS (10U * 24U * 60U * 60U)
+#define CERTIFICATE_WARNING_PERIOD_SECONDS (60U * 60U)
 
 static StaticTask_t healthCheckTaskControlBlock;
 static StackType_t healthCheckTaskStack[HEALTH_CHECK_TASK_STACK_DEPTH];
+static uint32_t certificateWarningAt[HEALTH_CHECK_CONFIG_MAX_RESOURCES];
+static uint32_t certificateWarningExpiry[HEALTH_CHECK_CONFIG_MAX_RESOURCES];
+
+static void healthCheckService_WarnCertificate(
+  uint8_t index,
+  uint32_t expiresAt
+) {
+  uint32_t now;
+  if ((expiresAt == 0U)
+      || (TimeService_GetUnixTime(&now) != HEALTH_CHECK_STATUS_OK)
+      || (expiresAt <= now)
+      || ((expiresAt - now) >= CERTIFICATE_WARNING_WINDOW_SECONDS)) {
+    return;
+  }
+
+  if (certificateWarningExpiry[index] != expiresAt) {
+    certificateWarningExpiry[index] = expiresAt;
+    certificateWarningAt[index] = 0U;
+  }
+  if ((certificateWarningAt[index] != 0U)
+      && ((now - certificateWarningAt[index])
+        < CERTIFICATE_WARNING_PERIOD_SECONDS)) {
+    return;
+  }
+
+  if (BuzzerService_CertificateWarning(index + 1U) == pdPASS) {
+    certificateWarningAt[index] = now;
+    Common_Printf(
+      "Certificate warning: resource=%u, expires_at=%lu\r\n",
+      (unsigned int)(index + 1U),
+      (unsigned long)expiresAt
+    );
+  }
+}
 
 /**
   * @brief Print the synchronized UTC time ahead of one check iteration.
@@ -120,6 +156,7 @@ static void healthCheckService_CheckResource(
       result.detail,
       (unsigned long)result.elapsedMs);
   }
+  healthCheckService_WarnCertificate(index, result.certificateExpiresAt);
 
   uint8_t resourceHealthy = ((result.status == TLS_TRANSPORT_OK)
       && (result.httpStatus == HEALTH_CHECK_OK_STATUS))
@@ -129,11 +166,11 @@ static void healthCheckService_CheckResource(
     "Resource health: %s\r\n", resourceHealthy != 0U ? "OK" : "FAILED"
   );
   if (resourceHealthy == 0U)
-    BuzzerService_Alert();
+    (void)BuzzerService_HealthCheckAlert(index + 1U);
 
   HealthCheckLog_EntryTypeDef logEntry;
   HealthCheck_StatusTypeDef logStatus = HealthCheckLog_Append(
-    index, &result, &logEntry
+    index, resource->trustAnchorId, &result, &logEntry
   );
   if (logStatus != HEALTH_CHECK_STATUS_OK) {
     Common_Printf("Health check log append failed; callback skipped.\r\n");
