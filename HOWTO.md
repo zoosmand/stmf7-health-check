@@ -106,13 +106,19 @@ returns HTTP `409` if any resource still references an anchor.
 
 ## Restore factory state
 
-Hold the blue B1 user button for at least five seconds. Release it after the
-two-tone acceptance acknowledgement. The device erases all API-created users, sessions,
-resources, trust anchors, uploaded server credentials, and logs, then restarts.
-Short presses are ignored. After restart, repeat this guide using the compiled
-master password and recovery certificate.
+Hold the blue B1 user button continuously for ten seconds. After five long
+warning beeps, release B1 and double-click it within the ten-second cancellation
+window to abort the reset; three long acknowledgement beeps confirm
+cancellation. If the window expires, the device erases all API-created users,
+sessions, resources, trust anchors, uploaded server credentials, and logs, then
+restarts. Short presses are ignored. After restart, repeat this guide using the
+compiled master password and recovery certificate.
 
 Do not deliberately remove power during the erase. If power is interrupted,
 the persistent reset marker makes the firmware finish the erase automatically
 on its next boot before the management services start.
 Five short tones mean a Flash operation failed; consult the diagnostic UART.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

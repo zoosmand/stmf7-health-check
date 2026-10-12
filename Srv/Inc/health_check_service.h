@@ -23,6 +23,10 @@
 
 #include "main.h"
 
+/**
+  * @brief Create the periodic HTTPS resource-check task.
+  * @retval (ErrorStatus) SUCCESS when the task was created; otherwise ERROR.
+  */
 ErrorStatus HealthCheckService_Init(void);
 
 #endif /* HEALTH_CHECK_SERVICE_H */

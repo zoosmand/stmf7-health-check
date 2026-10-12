@@ -1,4 +1,6 @@
 # STM32F767 health-check GNU Arm Embedded build.
+# Copyright (c) 2017-2026 Dmitry Slobodchikov. All rights reserved.
+# See LICENSE in the repository root for license terms.
 
 ######################################
 # target

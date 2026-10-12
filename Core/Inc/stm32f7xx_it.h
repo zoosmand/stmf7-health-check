@@ -21,11 +21,17 @@
 #ifndef STM32F7XX_IT_H
 #define STM32F7XX_IT_H
 
+/** @brief Handle a non-maskable interrupt by stopping in a diagnostic loop. */
 void NMI_Handler(void);
+/** @brief Handle a hard fault by stopping in a diagnostic loop. */
 void HardFault_Handler(void);
+/** @brief Handle a memory-management fault in a diagnostic loop. */
 void MemManage_Handler(void);
+/** @brief Handle a bus fault by stopping in a diagnostic loop. */
 void BusFault_Handler(void);
+/** @brief Handle a usage fault by stopping in a diagnostic loop. */
 void UsageFault_Handler(void);
+/** @brief Handle a debug-monitor exception. */
 void DebugMon_Handler(void);
 
 #endif /* STM32F7XX_IT_H */

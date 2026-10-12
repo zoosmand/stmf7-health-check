@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a7ed9183-c25b-4ec7-8fc4-df47ca130010",
     "name": "STM32 F767 Health Check API",
-    "description": "Environment-driven requests for the STM32F767 health-check API. Select an environment containing baseUrl, username, and password; authentication scripts maintain accessToken and refreshToken in that environment.",
+    "description": "Environment-driven requests for the STM32F767 health-check API. Select an environment containing baseUrl, username, and password; authentication scripts maintain accessToken and refreshToken in that environment. Copyright (c) 2017-2026 Dmitry Slobodchikov. All rights reserved.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -30,6 +30,8 @@
                   "pm.test(\"Device is operational\", () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
                   "pm.expect(body.status).to.eql(\"ok\");",
+                  "pm.expect(body.uptime).to.be.a(\"number\").and.to.be.at.least(0);",
+                  "pm.expect(Number.isInteger(body.uptime)).to.eql(true);",
                   "pm.expect(body.systems).to.include({api: true, network: true, time: true, flash: true});"
                 ]
               }

@@ -20,3 +20,12 @@
 7. Remove power during the warning or cancellation window. Confirm the device
    starts normally without performing a factory reset because no durable marker
    had yet been written.
+8. Start an SOS plus resource-ID pattern, then complete the long press while it
+   is playing. Confirm the reset warning waits for the active pattern, queued
+   resource alerts are discarded, and cancellation still works after the tones
+   finish. Record that the nominal cancellation window may already be running
+   while delayed warning tones play.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

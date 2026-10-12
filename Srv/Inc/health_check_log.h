@@ -39,8 +39,10 @@
   *        TlsTransport_ResultTypeDef.detail.
   * @param certificateExpiresAt (uint32_t) Remote leaf-certificate expiry as
   *        Unix UTC, or zero when the peer certificate was unavailable.
-  * @param certificateDaysLeft (int32_t) Whole days remaining at check time;
-  *        negative after expiry.
+  * @param certificateDaysLeft (int32_t) Whole days remaining at check time.
+  * @note The transport currently captures expiry only after a successful TLS
+  *       handshake. Expired certificates therefore report unavailable expiry
+  *       metadata rather than a negative certificateDaysLeft value.
   * @param httpStatus (uint16_t) HTTP status received, or 0 if none.
   * @param resourceIndex (uint8_t) Configured resource slot this check ran
   *        against.
