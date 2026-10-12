@@ -2,7 +2,7 @@
 
 This document defines the preferred naming style for project-owned STM32F767
 health-check firmware in `Core`, `Periph`, `Srv`, project-owned `lwip/system`,
-and the future `TLS` tree. Imported FreeRTOS, CMSIS, LAN8742, lwIP, and Mbed TLS code keeps its
+and `TLS`. Imported FreeRTOS, CMSIS, LAN8742, lwIP, and Mbed TLS code keeps its
 upstream style.
 
 The conventions describe the target style. Existing names are changed only in
@@ -118,3 +118,7 @@ symbols retain their required upstream spelling.
 Names tied to a peripheral register, protocol field, certificate property, or
 datasheet formula should remain traceable to the corresponding specification.
 Compatibility-sensitive renames belong in dedicated refactoring changes.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

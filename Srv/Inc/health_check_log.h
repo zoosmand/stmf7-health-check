@@ -37,19 +37,31 @@
   * @param elapsedMs (uint32_t) Check duration in milliseconds.
   * @param detail (int32_t) Layer-specific diagnostic code; see
   *        TlsTransport_ResultTypeDef.detail.
+  * @param certificateExpiresAt (uint32_t) Remote leaf-certificate expiry as
+  *        Unix UTC, or zero when the peer certificate was unavailable.
+  * @param certificateDaysLeft (int32_t) Whole days remaining at check time.
+  * @note The transport currently captures expiry only after a successful TLS
+  *       handshake. Expired certificates therefore report unavailable expiry
+  *       metadata rather than a negative certificateDaysLeft value.
   * @param httpStatus (uint16_t) HTTP status received, or 0 if none.
   * @param resourceIndex (uint8_t) Configured resource slot this check ran
   *        against.
   * @param status (uint8_t) TlsTransport_StatusTypeDef value for this check.
+  * @param certificateAnchorId (uint8_t) Configured trust-anchor ID.
+  * @param certificateExpiring (uint8_t) Nonzero with less than ten days left.
   */
 typedef struct {
   uint32_t sequence;
   uint32_t timestampUnix;
   uint32_t elapsedMs;
   int32_t detail;
+  uint32_t certificateExpiresAt;
+  int32_t certificateDaysLeft;
   uint16_t httpStatus;
   uint8_t resourceIndex;
   uint8_t status;
+  uint8_t certificateAnchorId;
+  uint8_t certificateExpiring;
 } HealthCheckLog_EntryTypeDef;
 
 HealthCheck_StatusTypeDef HealthCheckLog_Init(void);
@@ -58,6 +70,9 @@ HealthCheck_StatusTypeDef HealthCheckLog_Init(void);
   * @brief Append one check result to the persistent ring.
   * @param resourceIndex (uint8_t) Configured resource slot this check ran
   *        against.
+  * @param trustAnchorId (uint8_t) Configured trust anchor used by the check.
+  * @param timestampUnix (uint32_t) RTC UTC time captured for this check and
+  *        its certificate-warning decision.
   * @param result (const TlsTransport_ResultTypeDef*) Non-null check result.
   * @param entry (HealthCheckLog_EntryTypeDef*) Non-null output containing the
   *        exact record written and verified.
@@ -66,6 +81,8 @@ HealthCheck_StatusTypeDef HealthCheckLog_Init(void);
   */
 HealthCheck_StatusTypeDef HealthCheckLog_Append(
   uint8_t resourceIndex,
+  uint8_t trustAnchorId,
+  uint32_t timestampUnix,
   const TlsTransport_ResultTypeDef* result,
   HealthCheckLog_EntryTypeDef* entry
 );

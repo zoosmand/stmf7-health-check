@@ -32,12 +32,18 @@
 BaseType_t BuzzerService_Init(void);
 
 /**
-  * @brief Schedule the configured alert pattern for a failed resource check.
-  * @note Non-blocking. A pattern already queued or playing absorbs the
-  *       request instead of queuing a second one, so repeated failures never
-  *       grow an unbounded backlog. Safe to call from any task.
+  * @brief Schedule the failed-health-check warning and resource ID beeps.
+  * @param resourceId (uint8_t) One-based resource ID and following beep count.
+  * @retval (BaseType_t) pdPASS when queued, otherwise pdFAIL.
   */
-void BuzzerService_Alert(void);
+BaseType_t BuzzerService_HealthCheckAlert(uint8_t resourceId);
+
+/**
+  * @brief Schedule the certificate-expiry melody and resource ID beeps.
+  * @param resourceId (uint8_t) One-based resource ID and following beep count.
+  * @retval (BaseType_t) pdPASS when queued, otherwise pdFAIL.
+  */
+BaseType_t BuzzerService_CertificateWarning(uint8_t resourceId);
 
 /**
   * @brief Schedule five warning beeps before the reset cancellation window.

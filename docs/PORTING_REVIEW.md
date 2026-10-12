@@ -39,8 +39,8 @@ configuration/logging have since been ported on top of this baseline.
 
 ## Remaining port work
 
-- Port retained on-board RTC state, watchdog, sensors, and diagnostic services.
-- Port alarms in an individually testable stage.
+- Port sensors and their diagnostic reporting.
+- Port sensor-driven alarms in an individually testable stage.
 
 ## Verification
 
@@ -48,7 +48,12 @@ configuration/logging have since been ported on top of this baseline.
 - The original baseline size was 9,708 bytes text, 124 bytes initialized data,
   and 32,756 bytes BSS, including the reserved Ethernet DMA buffers.
 - With networking, Mbed TLS 3.6.7, SNTP, persistent stores, the HTTPS checker,
-  and management API enabled, the verified size is 325,020 bytes text, 168
-  bytes initialized data, and 220,688 bytes BSS.
+  callbacks, telemetry, buzzer alerts, factory reset, and management API
+  enabled, the verified size is 335,136 bytes text, 168 bytes initialized data,
+  and 250,392 bytes BSS.
 - Host-side Python, shell, Postman JSON, and whitespace checks pass.
 - Target-device behavior still requires maintainer testing.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.
