@@ -30,6 +30,8 @@
                   "pm.test(\"Device is operational\", () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
                   "pm.expect(body.status).to.eql(\"ok\");",
+                  "pm.expect(body.uptime).to.be.a(\"number\").and.to.be.at.least(0);",
+                  "pm.expect(Number.isInteger(body.uptime)).to.eql(true);",
                   "pm.expect(body.systems).to.include({api: true, network: true, time: true, flash: true});"
                 ]
               }

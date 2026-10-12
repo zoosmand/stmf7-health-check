@@ -343,8 +343,8 @@ The unauthenticated `/health` endpoint returns HTTP `200` with `status: "ok"`
 only when API, network, synchronized time, and flash are operational; otherwise
 it returns HTTP `503`. Remote-resource health is reported through the log and
 does not affect this device self-check. The response also carries `version`
-(from the `.version` file at build time) and `build_date` (UTC, ISO 8601, set
-when the firmware was built).
+(from the `.version` file at build time), `build_date` (UTC, ISO 8601, set when
+the firmware was built), and `uptime` as whole seconds since scheduler startup.
 
 Server credential uploads accept raw DER only: one certificate up to 1152 bytes
 and one private key up to 384 bytes. The pair is parsed, matched, and committed
