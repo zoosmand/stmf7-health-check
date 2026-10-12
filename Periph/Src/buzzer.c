@@ -26,7 +26,6 @@
 #define BUZZER_PIN_POSITION         3U
 #define BUZZER_ALTERNATE_FUNCTION   1U
 #define BUZZER_TIMER_TICK_HZ        1000000U
-#define BUZZER_TONE_HZ              2500U
 
 static void buzzer_ConfigureAlternatePin(void);
 
@@ -47,7 +46,7 @@ void Buzzer_Init(void) {
   TIM2->CR1 = 0U;
   TIM2->CCER = 0U;
   TIM2->PSC = prescaler;
-  Buzzer_SetFrequency(BUZZER_TONE_HZ);
+  Buzzer_SetFrequency(BUZZER_DEFAULT_FREQUENCY_HZ);
   MODIFY_REG(
     TIM2->CCMR2,
     TIM_CCMR2_OC4M | TIM_CCMR2_OC4PE,

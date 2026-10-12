@@ -53,11 +53,10 @@ static uint32_t certificateWarningExpiry[HEALTH_CHECK_CONFIG_MAX_RESOURCES];
 
 static void healthCheckService_WarnCertificate(
   uint8_t index,
-  uint32_t expiresAt
+  uint32_t expiresAt,
+  uint32_t now
 ) {
-  uint32_t now;
   if ((expiresAt == 0U)
-      || (TimeService_GetUnixTime(&now) != HEALTH_CHECK_STATUS_OK)
       || (expiresAt <= now)
       || ((expiresAt - now) >= CERTIFICATE_WARNING_WINDOW_SECONDS)) {
     return;
@@ -156,8 +155,6 @@ static void healthCheckService_CheckResource(
       result.detail,
       (unsigned long)result.elapsedMs);
   }
-  healthCheckService_WarnCertificate(index, result.certificateExpiresAt);
-
   uint8_t resourceHealthy = ((result.status == TLS_TRANSPORT_OK)
       && (result.httpStatus == HEALTH_CHECK_OK_STATUS))
     ? 1U
@@ -165,12 +162,21 @@ static void healthCheckService_CheckResource(
   Common_Printf(
     "Resource health: %s\r\n", resourceHealthy != 0U ? "OK" : "FAILED"
   );
-  if (resourceHealthy == 0U)
+  if (resourceHealthy == 0U) {
     (void)BuzzerService_HealthCheckAlert(index + 1U);
+  }
+
+  uint32_t checkedAt = 0U;
+  (void)TimeService_GetUnixTime(&checkedAt);
+  if (resourceHealthy != 0U) {
+    healthCheckService_WarnCertificate(
+      index, result.certificateExpiresAt, checkedAt
+    );
+  }
 
   HealthCheckLog_EntryTypeDef logEntry;
   HealthCheck_StatusTypeDef logStatus = HealthCheckLog_Append(
-    index, resource->trustAnchorId, &result, &logEntry
+    index, resource->trustAnchorId, checkedAt, &result, &logEntry
   );
   if (logStatus != HEALTH_CHECK_STATUS_OK) {
     Common_Printf("Health check log append failed; callback skipped.\r\n");

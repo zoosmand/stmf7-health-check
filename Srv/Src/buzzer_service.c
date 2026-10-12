@@ -21,13 +21,14 @@
 #include "buzzer_service.h"
 
 #include "buzzer.h"
+#include "health_check_config.h"
 #include "queue.h"
 #include "task.h"
 #include "telemetry_service.h"
 
 #define BUZZER_TASK_PRIORITY    (tskIDLE_PRIORITY + 1U)
 #define BUZZER_STACK_WORDS      configMINIMAL_STACK_SIZE
-#define BUZZER_QUEUE_LENGTH     1U
+#define BUZZER_QUEUE_LENGTH     (2U * HEALTH_CHECK_CONFIG_MAX_RESOURCES)
 #define BUZZER_STARTUP_TONE_MS  150U
 #define BUZZER_ALERT_TONE_MS    120U
 #define BUZZER_ALERT_GAP_MS     120U
@@ -36,7 +37,6 @@
 #define BUZZER_FAILURE_TONE_MS  70U
 #define BUZZER_FAILURE_GAP_MS   70U
 #define BUZZER_FAILURE_COUNT    5U
-#define BUZZER_DEFAULT_TONE_HZ  2500U
 #define BUZZER_MELODY_TONE_MS   120U
 #define BUZZER_MELODY_GAP_MS    45U
 #define BUZZER_MELODY_NOTES     3U
@@ -125,7 +125,8 @@ void BuzzerService_FactoryResetWarning(void) {
   if (buzzerQueue == NULL)
     return;
   BuzzerService_EventTypeDef event = { .type = BUZZER_EVENT_RESET_WARNING };
-  (void)xQueueOverwrite(buzzerQueue, &event);
+  (void)xQueueReset(buzzerQueue);
+  (void)xQueueSendToFront(buzzerQueue, &event, 0U);
 }
 
 TickType_t BuzzerService_FactoryResetWarningDuration(void) {
@@ -138,14 +139,16 @@ void BuzzerService_FactoryResetCancelled(void) {
   if (buzzerQueue == NULL)
     return;
   BuzzerService_EventTypeDef event = { .type = BUZZER_EVENT_RESET_CANCELLED };
-  (void)xQueueOverwrite(buzzerQueue, &event);
+  (void)xQueueReset(buzzerQueue);
+  (void)xQueueSendToFront(buzzerQueue, &event, 0U);
 }
 
 void BuzzerService_FactoryResetFailure(void) {
   if (buzzerQueue == NULL)
     return;
   BuzzerService_EventTypeDef event = { .type = BUZZER_EVENT_FAILURE };
-  (void)xQueueOverwrite(buzzerQueue, &event);
+  (void)xQueueReset(buzzerQueue);
+  (void)xQueueSendToFront(buzzerQueue, &event, 0U);
 }
 
 /**
@@ -235,7 +238,7 @@ static void buzzerService_PlayHealthCheckAlert(uint8_t resourceId) {
 }
 
 static void buzzerService_PlayResourceId(uint8_t resourceId) {
-  Buzzer_SetFrequency(BUZZER_DEFAULT_TONE_HZ);
+  Buzzer_SetFrequency(BUZZER_DEFAULT_FREQUENCY_HZ);
   for (uint32_t index = 0U; index < resourceId; ++index) {
     buzzerService_Beep(BUZZER_ALERT_TONE_MS);
     if ((index + 1U) < resourceId)

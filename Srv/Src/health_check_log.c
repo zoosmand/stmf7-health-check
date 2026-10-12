@@ -34,7 +34,6 @@
 
 #include "FreeRTOS.h"
 #include "flash_layout.h"
-#include "time_service.h"
 #include "semphr.h"
 #include "w25q64.h"
 
@@ -59,8 +58,7 @@ typedef struct {
   uint8_t status;
   uint8_t certificateAnchorId;
   uint8_t certificateExpiring;
-  uint8_t certificateExpired;
-  uint8_t reserved;
+  uint8_t reserved[2];
   uint32_t crc;
 } healthCheckLog_RecordTypeDef;
 
@@ -184,6 +182,7 @@ HealthCheck_StatusTypeDef HealthCheckLog_Init(void) {
 HealthCheck_StatusTypeDef HealthCheckLog_Append(
   uint8_t resourceIndex,
   uint8_t trustAnchorId,
+  uint32_t timestampUnix,
   const TlsTransport_ResultTypeDef* result,
   HealthCheckLog_EntryTypeDef* entry
 ) {
@@ -201,7 +200,7 @@ HealthCheck_StatusTypeDef HealthCheckLog_Append(
   healthCheckLog_RecordTypeDef record = {
     .magic = HEALTH_CHECK_LOG_RECORD_MAGIC,
     .sequence = nextSequence,
-    .timestampUnix = 0U,
+    .timestampUnix = timestampUnix,
     .elapsedMs = result->elapsedMs,
     .detail = (int32_t)result->detail,
     .certificateExpiresAt = result->certificateExpiresAt,
@@ -211,18 +210,15 @@ HealthCheck_StatusTypeDef HealthCheckLog_Append(
     .status = (uint8_t)result->status,
     .certificateAnchorId = trustAnchorId,
     .certificateExpiring = 0U,
-    .certificateExpired = 0U,
-    .reserved = 0U,
+    .reserved = { 0U, 0U },
     .crc = 0U,
   };
-  (void)TimeService_GetUnixTime(&record.timestampUnix);
   if (record.certificateExpiresAt != 0U) {
     if (record.certificateExpiresAt <= record.timestampUnix) {
       uint32_t overdue = record.timestampUnix - record.certificateExpiresAt;
       record.certificateDaysLeft = -(int32_t)(
         ((uint64_t)overdue + 86399U) / 86400U
       );
-      record.certificateExpired = 1U;
     } else {
       uint32_t remaining = record.certificateExpiresAt - record.timestampUnix;
       record.certificateDaysLeft = (int32_t)(remaining / 86400U);
@@ -257,7 +253,6 @@ HealthCheck_StatusTypeDef HealthCheckLog_Append(
       entry->status = verification.status;
       entry->certificateAnchorId = verification.certificateAnchorId;
       entry->certificateExpiring = verification.certificateExpiring;
-      entry->certificateExpired = verification.certificateExpired;
     }
   }
   if (flashStatus != W25Q64_STATUS_OK)
@@ -324,7 +319,6 @@ size_t HealthCheckLog_GetRecent(
       entries[written].status = record.status;
       entries[written].certificateAnchorId = record.certificateAnchorId;
       entries[written].certificateExpiring = record.certificateExpiring;
-      entries[written].certificateExpired = record.certificateExpired;
       ++written;
     }
   }

@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 
+#define BUZZER_DEFAULT_FREQUENCY_HZ 2500U
+
 /**
   * @brief Configure TIM2 channel 4 for a fixed audible tone and leave the
   *        buzzer output driven to a safe, silent state.

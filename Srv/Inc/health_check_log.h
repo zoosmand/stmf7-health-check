@@ -47,7 +47,6 @@
   * @param status (uint8_t) TlsTransport_StatusTypeDef value for this check.
   * @param certificateAnchorId (uint8_t) Configured trust-anchor ID.
   * @param certificateExpiring (uint8_t) Nonzero with less than ten days left.
-  * @param certificateExpired (uint8_t) Nonzero at or after expiration.
   */
 typedef struct {
   uint32_t sequence;
@@ -61,7 +60,6 @@ typedef struct {
   uint8_t status;
   uint8_t certificateAnchorId;
   uint8_t certificateExpiring;
-  uint8_t certificateExpired;
 } HealthCheckLog_EntryTypeDef;
 
 HealthCheck_StatusTypeDef HealthCheckLog_Init(void);
@@ -71,6 +69,8 @@ HealthCheck_StatusTypeDef HealthCheckLog_Init(void);
   * @param resourceIndex (uint8_t) Configured resource slot this check ran
   *        against.
   * @param trustAnchorId (uint8_t) Configured trust anchor used by the check.
+  * @param timestampUnix (uint32_t) RTC UTC time captured for this check and
+  *        its certificate-warning decision.
   * @param result (const TlsTransport_ResultTypeDef*) Non-null check result.
   * @param entry (HealthCheckLog_EntryTypeDef*) Non-null output containing the
   *        exact record written and verified.
@@ -80,6 +80,7 @@ HealthCheck_StatusTypeDef HealthCheckLog_Init(void);
 HealthCheck_StatusTypeDef HealthCheckLog_Append(
   uint8_t resourceIndex,
   uint8_t trustAnchorId,
+  uint32_t timestampUnix,
   const TlsTransport_ResultTypeDef* result,
   HealthCheckLog_EntryTypeDef* entry
 );

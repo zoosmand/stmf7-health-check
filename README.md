@@ -153,17 +153,17 @@ check time:
   "expiring_date": "2026-10-20T12:00:00Z",
   "days_left": 9,
   "anchor_id": 1,
-  "expiring": true,
-  "expired": false
+  "expiring": true
 }
 ```
 
 `expiring` is true only while the certificate is still valid with less than
-ten days remaining. At or after the expiry instant, only `expired` is true.
+ten days remaining.
 When a peer certificate is unavailable, `expiring_date` and `days_left` are
-`null`, while both flags are false. Changing the persistent log-record format
+`null`, while `expiring` is false. Changing the persistent log-record format
 invalidates legacy result entries; they are ignored and replaced as new checks
-are appended.
+are appended. The log sequence consequently restarts at 1 once after installing
+this firmware version.
 
 Configuration is stored as alternating transactional snapshots in W25Q64
 sectors 3 and 4 from the top of the device. Results use an append-only ring in

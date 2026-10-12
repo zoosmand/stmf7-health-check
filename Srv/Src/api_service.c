@@ -453,7 +453,7 @@ static int apiService_FormatLogEntry(
       expiryFields,
       sizeof(expiryFields),
       "\"expiring_date\":null,\"days_left\":null,\"anchor_id\":%u,"
-      "\"expiring\":false,\"expired\":false",
+      "\"expiring\":false",
       (unsigned int)entry->certificateAnchorId
     );
   } else {
@@ -465,8 +465,7 @@ static int apiService_FormatLogEntry(
       expiryFields,
       sizeof(expiryFields),
       "\"expiring_date\":\"%04d-%02d-%02dT%02d:%02d:%02dZ\","
-      "\"days_left\":%ld,\"anchor_id\":%u,\"expiring\":%s,"
-      "\"expired\":%s",
+      "\"days_left\":%ld,\"anchor_id\":%u,\"expiring\":%s",
       expiryUtc.tm_year + 1900,
       expiryUtc.tm_mon + 1,
       expiryUtc.tm_mday,
@@ -475,8 +474,7 @@ static int apiService_FormatLogEntry(
       expiryUtc.tm_sec,
       (long)entry->certificateDaysLeft,
       (unsigned int)entry->certificateAnchorId,
-      entry->certificateExpiring != 0U ? "true" : "false",
-      entry->certificateExpired != 0U ? "true" : "false"
+      entry->certificateExpiring != 0U ? "true" : "false"
     );
   }
   return snprintf(
