@@ -181,8 +181,10 @@ silent.
 Certificate-expiry warnings use a high-low-high warning followed by the
 same resource-ID count. A single short tone plays once at startup, so wiring
 can be verified without waiting for a failure. The buzzer task serializes
-alerts through a one-entry static queue so repeated failures cannot grow an
-unbounded backlog. TIM2's counter and channel output stay disabled whenever no
+alerts through a bounded 12-entry static queue, enough for one health alert and
+one certificate warning for each configured resource in a check cycle.
+Factory-reset events flush pending alerts before they are queued at the front.
+TIM2's counter and channel output stay disabled whenever no
 tone is playing, and `PA3` is held as a plain low output outside an active tone,
 so the transistor base is never left floating. Factory reset uses five long
 warning beeps; a successful cancellation uses three long acknowledgement beeps.
