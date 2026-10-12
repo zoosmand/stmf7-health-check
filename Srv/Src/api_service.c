@@ -22,6 +22,7 @@
 
 #include "FreeRTOS.h"
 #include "auth_service.h"
+#include "buzzer_service.h"
 #include "callback_config.h"
 #include "callback_service.h"
 #include "health_check_config.h"
@@ -446,12 +447,42 @@ static int apiService_FormatLogEntry(
   const HealthCheckLog_EntryTypeDef* entry,
   uint8_t first
 ) {
+  char expiryFields[192];
+  if (entry->certificateExpiresAt == 0U) {
+    (void)snprintf(
+      expiryFields,
+      sizeof(expiryFields),
+      "\"expiring_date\":null,\"days_left\":null,\"anchor_id\":%u,"
+      "\"expiring\":false",
+      (unsigned int)entry->certificateAnchorId
+    );
+  } else {
+    time_t expiryTimestamp = (time_t)entry->certificateExpiresAt;
+    struct tm expiryUtc;
+    if (gmtime_r(&expiryTimestamp, &expiryUtc) == NULL)
+      return -1;
+    (void)snprintf(
+      expiryFields,
+      sizeof(expiryFields),
+      "\"expiring_date\":\"%04d-%02d-%02dT%02d:%02d:%02dZ\","
+      "\"days_left\":%ld,\"anchor_id\":%u,\"expiring\":%s",
+      expiryUtc.tm_year + 1900,
+      expiryUtc.tm_mon + 1,
+      expiryUtc.tm_mday,
+      expiryUtc.tm_hour,
+      expiryUtc.tm_min,
+      expiryUtc.tm_sec,
+      (long)entry->certificateDaysLeft,
+      (unsigned int)entry->certificateAnchorId,
+      entry->certificateExpiring != 0U ? "true" : "false"
+    );
+  }
   return snprintf(
     output,
     capacity,
     "%s{\"sequence\":%lu,\"timestamp\":%lu,\"resource_index\":%u,"
     "\"status\":\"%s\",\"http_status\":%u,\"elapsed_ms\":%lu,"
-    "\"detail\":%ld}",
+    "\"detail\":%ld,\"certificate\":{%s}}",
     first != 0U ? "" : ",",
     (unsigned long)entry->sequence,
     (unsigned long)entry->timestampUnix,
@@ -461,7 +492,8 @@ static int apiService_FormatLogEntry(
     ),
     (unsigned int)entry->httpStatus,
     (unsigned long)entry->elapsedMs,
-    (long)entry->detail
+    (long)entry->detail,
+    expiryFields
   );
 }
 
@@ -472,7 +504,7 @@ static int apiService_RespondLogs(
 ) {
   static const char prefix[] = "{\"logs\":[";
   static const char suffix[] = "]}";
-  char fragment[192];
+  char fragment[384];
   size_t bodyLength = (sizeof(prefix) - 1U) + (sizeof(suffix) - 1U);
   for (size_t index = 0U; index < count; ++index) {
     int length = apiService_FormatLogEntry(
@@ -796,6 +828,46 @@ static int apiService_Dispatch(
         ssl, 500, "Internal Server Error", "response_too_large"
       );
     return apiService_Respond(ssl, 200, "OK", json);
+  }
+
+  uint8_t testingHealthCheckAlert = ((strcmp(request->method, "POST") == 0)
+      && (strcmp(
+        request->path, "/api/v1/buzzer/health-check-alert"
+      ) == 0));
+  uint8_t testingCertificateAlert = ((strcmp(request->method, "POST") == 0)
+      && (strcmp(
+        request->path, "/api/v1/buzzer/certificate-expiry-alert"
+      ) == 0));
+  if ((testingHealthCheckAlert != 0U) || (testingCertificateAlert != 0U)) {
+    if (principal.role != USER_ROLE_ADMINISTRATOR)
+      return apiService_Error(ssl, 403, "Forbidden", "forbidden");
+    uint32_t resourceIndex;
+    if ((apiService_JsonNumber(
+          request->body, "resource_index", &resourceIndex
+        ) == 0U)
+        || (resourceIndex >= HEALTH_CHECK_CONFIG_MAX_RESOURCES)) {
+      return apiService_Error(
+        ssl, 400, "Bad Request", "invalid_resource_index"
+      );
+    }
+    uint8_t resourceId = (uint8_t)resourceIndex + 1U;
+    BaseType_t queued = testingHealthCheckAlert != 0U
+      ? BuzzerService_HealthCheckAlert(resourceId)
+      : BuzzerService_CertificateWarning(resourceId);
+    if (queued != pdPASS) {
+      return apiService_Error(
+        ssl, 503, "Service Unavailable", "buzzer_busy"
+      );
+    }
+    char json[80];
+    (void)snprintf(
+      json,
+      sizeof(json),
+      "{\"queued\":true,\"resource_index\":%lu,\"resource_id\":%u}",
+      (unsigned long)resourceIndex,
+      (unsigned int)resourceId
+    );
+    return apiService_Respond(ssl, 202, "Accepted", json);
   }
 
   if ((strcmp(request->method, "GET") == 0)

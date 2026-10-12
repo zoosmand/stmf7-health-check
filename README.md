@@ -39,6 +39,7 @@ Project documentation:
 - asynchronous configurable HTTPS callbacks for failed checks
 - authenticated runtime telemetry for task stacks and callback delivery
 - TIM2/PA3 buzzer alert on failed resource checks
+- hourly melodic warning for resource certificates expiring within 10 days
 - power-loss-safe factory reset by holding the B1 user button
 - TLS 1.3 management API with bearer-token authentication
 - statically allocated heartbeat task
@@ -107,6 +108,9 @@ The request uses TLS 1.3 and HTTP `HEAD`. Certificate chain, hostname, and
 validity dates are verified against the resource's selected trust anchor. A
 resource is healthy only when the TLS transaction succeeds and the server
 returns HTTP status `200`; redirects and all other statuses are failures.
+During the final 10 days of the remote leaf certificate's validity, the buzzer
+plays a high-low-high three-note warning at most once per hour, followed by one
+through six short beeps for the resource's one-based ID.
 
 Successful output has this form:
 
@@ -141,6 +145,26 @@ supports six resources and periods from 60 through 1800 seconds; the management
 API provides persistent mutation. The trust store supports six uploaded CA
 certificates; firmware contains no outbound factory trust anchor.
 
+Each retained result includes the remote leaf-certificate state observed at
+check time:
+
+```json
+"certificate": {
+  "expiring_date": "2026-10-20T12:00:00Z",
+  "days_left": 9,
+  "anchor_id": 1,
+  "expiring": true
+}
+```
+
+`expiring` is true only while the certificate is still valid with less than
+ten days remaining.
+When a peer certificate is unavailable, `expiring_date` and `days_left` are
+`null`, while `expiring` is false. Changing the persistent log-record format
+invalidates legacy result entries; they are ignored and replaced as new checks
+are appended. The log sequence consequently restarts at 1 once after installing
+this firmware version.
+
 Configuration is stored as alternating transactional snapshots in W25Q64
 sectors 3 and 4 from the top of the device. Results use an append-only ring in
 sectors 7 and 8 from the top. Trust anchors use two four-sector banks in sectors
@@ -150,16 +174,20 @@ a migration.
 
 ## Buzzer alert
 
-A passive buzzer on `PA3`/`TIM2_CH4` (connector `CN8/A0`) sounds a bounded
-three-beep pattern whenever a resource check fails; successful checks stay
-silent. A single short tone plays once at startup, so wiring can be verified
-without waiting for a failure. The buzzer task serializes repeated alerts
-through a one-entry static queue: a pattern already queued or playing absorbs
-further failures instead of queuing a backlog. TIM2's counter and channel
-output stay disabled whenever no tone is playing, and `PA3` is held as a plain
-low output outside an active tone, so the transistor base is never left
-floating. Factory reset uses five long warning beeps; a successful cancellation
-uses three long acknowledgement beeps.
+A passive buzzer on `PA3`/`TIM2_CH4` (connector `CN8/A0`) plays a Morse-style
+SOS warning (`... --- ...`) whenever a resource check fails, followed by one
+through six short beeps for the resource's one-based ID; successful checks stay
+silent.
+Certificate-expiry warnings use a high-low-high warning followed by the
+same resource-ID count. A single short tone plays once at startup, so wiring
+can be verified without waiting for a failure. The buzzer task serializes
+alerts through a bounded 12-entry static queue, enough for one health alert and
+one certificate warning for each configured resource in a check cycle.
+Factory-reset events flush pending alerts before they are queued at the front.
+TIM2's counter and channel output stay disabled whenever no
+tone is playing, and `PA3` is held as a plain low output outside an active tone,
+so the transistor base is never left floating. Factory reset uses five long
+warning beeps; a successful cancellation uses three long acknowledgement beeps.
 
 ## Factory reset
 
@@ -286,6 +314,8 @@ invalidates all sessions.
 | `POST` | `/api/v1/auth/revoke` | Bearer | Revoke the current session. |
 | `GET` | `/api/v1/rtc` | Any bearer | Return synchronized Unix time and UTC date/time. |
 | `GET` | `/api/v1/system/telemetry` | Any bearer | Return uptime, task stack headroom, and callback counters. |
+| `POST` | `/api/v1/buzzer/health-check-alert` | Administrator bearer | Queue the failed-check pattern for `resource_index`. |
+| `POST` | `/api/v1/buzzer/certificate-expiry-alert` | Administrator bearer | Queue the expiry pattern for `resource_index`. |
 | `GET` | `/api/v1/callback/config` | Any bearer | Read outbound callback configuration. |
 | `PUT` | `/api/v1/callback/config` | Administrator bearer | Partially update callback configuration. |
 | `GET`, `POST` | `/api/v1/users` | Administrator bearer | List or create users. |

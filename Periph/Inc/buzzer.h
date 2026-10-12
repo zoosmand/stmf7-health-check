@@ -21,6 +21,10 @@
 #ifndef BUZZER_H
 #define BUZZER_H
 
+#include <stdint.h>
+
+#define BUZZER_DEFAULT_FREQUENCY_HZ 2500U
+
 /**
   * @brief Configure TIM2 channel 4 for a fixed audible tone and leave the
   *        buzzer output driven to a safe, silent state.
@@ -31,6 +35,13 @@
   *       unspecified.
   */
 void Buzzer_Init(void);
+
+/**
+  * @brief Select the PWM tone frequency used by the next Buzzer_On() call.
+  * @param frequencyHz (uint32_t) Nonzero audible frequency in hertz.
+  * @note Call only while the buzzer is off.
+  */
+void Buzzer_SetFrequency(uint32_t frequencyHz);
 
 /**
   * @brief Switch PA3 to TIM2 channel 4 and start the tone from a fresh cycle.

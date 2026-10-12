@@ -39,6 +39,8 @@ typedef struct {
   int detail;
   uint16_t httpStatus;
   uint32_t elapsedMs;
+  /** Remote leaf-certificate expiry as Unix UTC, or zero when unavailable. */
+  uint32_t certificateExpiresAt;
   const char* tlsVersion;
   const char* cipherSuite;
 } TlsTransport_ResultTypeDef;

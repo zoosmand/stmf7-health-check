@@ -32,6 +32,7 @@
 #include "time_service.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -48,6 +49,36 @@ typedef struct {
 /* Protected by TlsPlatform_Lock for every transport operation. */
 static char tlsTransport_RequestBuffer[TLS_TRANSPORT_REQUEST_SIZE];
 static char tlsTransport_HostHeader[TLS_TRANSPORT_HOST_HEADER_SIZE];
+
+/**
+  * @brief Convert a parsed X.509 UTC timestamp to the board's Unix-time form.
+  * @retval (uint32_t) Unix timestamp, or zero when it is not representable.
+  */
+static uint32_t tlsTransport_X509TimeToUnix(const mbedtls_x509_time* value) {
+  if ((value == NULL) || (value->year < 1970) || (value->mon < 1)
+      || (value->mon > 12) || (value->day < 1) || (value->day > 31)
+      || (value->hour < 0) || (value->hour > 23) || (value->min < 0)
+      || (value->min > 59) || (value->sec < 0) || (value->sec > 59)) {
+    return 0U;
+  }
+
+  int64_t year = value->year;
+  uint32_t month = (uint32_t)value->mon;
+  year -= month <= 2U ? 1 : 0;
+  int64_t era = year / 400;
+  uint32_t yearOfEra = (uint32_t)(year - (era * 400));
+  uint32_t shiftedMonth = month > 2U ? month - 3U : month + 9U;
+  uint32_t dayOfYear = ((153U * shiftedMonth) + 2U) / 5U
+    + (uint32_t)value->day - 1U;
+  uint32_t dayOfEra = (yearOfEra * 365U) + (yearOfEra / 4U)
+    - (yearOfEra / 100U) + dayOfYear;
+  int64_t days = (era * 146097) + dayOfEra - 719468;
+  int64_t seconds = (days * 86400) + ((int64_t)value->hour * 3600)
+    + ((int64_t)value->min * 60) + value->sec;
+  return ((seconds > 0) && (seconds <= UINT32_MAX))
+    ? (uint32_t)seconds
+    : 0U;
+}
 
 static uint8_t tlsTransport_IsTimeoutError(int socketError) {
   return ((socketError == EAGAIN)
@@ -353,6 +384,12 @@ TlsTransport_StatusTypeDef TlsTransport_Request(
   );
 
   detail = mbedtls_ssl_handshake(&ssl);
+  const mbedtls_x509_crt* peerCertificate = mbedtls_ssl_get_peer_cert(&ssl);
+  if (peerCertificate != NULL) {
+    result->certificateExpiresAt = tlsTransport_X509TimeToUnix(
+      &peerCertificate->valid_to
+    );
+  }
   if (detail != 0) {
     result->status = (mbedtls_ssl_get_verify_result(&ssl) != 0U)
       ? TLS_TRANSPORT_CERTIFICATE_ERROR

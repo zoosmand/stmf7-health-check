@@ -34,7 +34,6 @@
 
 #include "FreeRTOS.h"
 #include "flash_layout.h"
-#include "time_service.h"
 #include "semphr.h"
 #include "w25q64.h"
 
@@ -43,17 +42,30 @@
 #include <string.h>
 
 #define HEALTH_CHECK_LOG_ERASED_SEQUENCE 0xFFFFFFFFUL
+#define HEALTH_CHECK_LOG_RECORD_MAGIC     0x48434C32UL
+#define HEALTH_CHECK_LOG_EXPIRING_SECONDS (10U * 24U * 60U * 60U)
 
 typedef struct {
+  uint32_t magic;
   uint32_t sequence;
   uint32_t timestampUnix;
   uint32_t elapsedMs;
   int32_t detail;
+  uint32_t certificateExpiresAt;
+  int32_t certificateDaysLeft;
   uint16_t httpStatus;
   uint8_t resourceIndex;
   uint8_t status;
+  uint8_t certificateAnchorId;
+  uint8_t certificateExpiring;
+  uint8_t reserved[2];
   uint32_t crc;
 } healthCheckLog_RecordTypeDef;
+
+_Static_assert(
+  sizeof(healthCheckLog_RecordTypeDef) == 40U,
+  "Persistent health-check log record layout changed"
+);
 
 #define HEALTH_CHECK_LOG_SLOTS_PER_SECTOR \
   (W25Q64_SECTOR_SIZE / sizeof(healthCheckLog_RecordTypeDef))
@@ -109,9 +121,10 @@ static void healthCheckLog_ScanSector(
       next = slot;
       break;
     }
-    if (record.crc != healthCheckLog_Crc(
+    if ((record.magic != HEALTH_CHECK_LOG_RECORD_MAGIC)
+        || (record.crc != healthCheckLog_Crc(
           &record, offsetof(healthCheckLog_RecordTypeDef, crc)
-        )) {
+        ))) {
       /* A torn NOR write cannot be retried without an erase. Skip its slot
          and continue appending at the following erased location. */
       next = slot + 1U;
@@ -168,6 +181,8 @@ HealthCheck_StatusTypeDef HealthCheckLog_Init(void) {
 
 HealthCheck_StatusTypeDef HealthCheckLog_Append(
   uint8_t resourceIndex,
+  uint8_t trustAnchorId,
+  uint32_t timestampUnix,
   const TlsTransport_ResultTypeDef* result,
   HealthCheckLog_EntryTypeDef* entry
 ) {
@@ -183,16 +198,35 @@ HealthCheck_StatusTypeDef HealthCheckLog_Append(
   }
 
   healthCheckLog_RecordTypeDef record = {
+    .magic = HEALTH_CHECK_LOG_RECORD_MAGIC,
     .sequence = nextSequence,
-    .timestampUnix = 0U,
+    .timestampUnix = timestampUnix,
     .elapsedMs = result->elapsedMs,
     .detail = (int32_t)result->detail,
+    .certificateExpiresAt = result->certificateExpiresAt,
+    .certificateDaysLeft = 0,
     .httpStatus = result->httpStatus,
     .resourceIndex = resourceIndex,
     .status = (uint8_t)result->status,
+    .certificateAnchorId = trustAnchorId,
+    .certificateExpiring = 0U,
+    .reserved = { 0U, 0U },
     .crc = 0U,
   };
-  (void)TimeService_GetUnixTime(&record.timestampUnix);
+  if (record.certificateExpiresAt != 0U) {
+    if (record.certificateExpiresAt <= record.timestampUnix) {
+      uint32_t overdue = record.timestampUnix - record.certificateExpiresAt;
+      record.certificateDaysLeft = -(int32_t)(
+        ((uint64_t)overdue + 86399U) / 86400U
+      );
+    } else {
+      uint32_t remaining = record.certificateExpiresAt - record.timestampUnix;
+      record.certificateDaysLeft = (int32_t)(remaining / 86400U);
+      record.certificateExpiring = remaining < HEALTH_CHECK_LOG_EXPIRING_SECONDS
+        ? 1U
+        : 0U;
+    }
+  }
   record.crc = healthCheckLog_Crc(
     &record, offsetof(healthCheckLog_RecordTypeDef, crc)
   );
@@ -212,9 +246,13 @@ HealthCheck_StatusTypeDef HealthCheckLog_Append(
       entry->timestampUnix = verification.timestampUnix;
       entry->elapsedMs = verification.elapsedMs;
       entry->detail = verification.detail;
+      entry->certificateExpiresAt = verification.certificateExpiresAt;
+      entry->certificateDaysLeft = verification.certificateDaysLeft;
       entry->httpStatus = verification.httpStatus;
       entry->resourceIndex = verification.resourceIndex;
       entry->status = verification.status;
+      entry->certificateAnchorId = verification.certificateAnchorId;
+      entry->certificateExpiring = verification.certificateExpiring;
     }
   }
   if (flashStatus != W25Q64_STATUS_OK)
@@ -264,6 +302,7 @@ size_t HealthCheckLog_GetRecent(
       if (W25Q64_Read(address, &record, sizeof(record)) != W25Q64_STATUS_OK)
         break;
       if ((record.sequence == HEALTH_CHECK_LOG_ERASED_SEQUENCE)
+          || (record.magic != HEALTH_CHECK_LOG_RECORD_MAGIC)
           || (record.crc != healthCheckLog_Crc(
                 &record, offsetof(healthCheckLog_RecordTypeDef, crc)
               ))) {
@@ -273,9 +312,13 @@ size_t HealthCheckLog_GetRecent(
       entries[written].timestampUnix = record.timestampUnix;
       entries[written].elapsedMs = record.elapsedMs;
       entries[written].detail = record.detail;
+      entries[written].certificateExpiresAt = record.certificateExpiresAt;
+      entries[written].certificateDaysLeft = record.certificateDaysLeft;
       entries[written].httpStatus = record.httpStatus;
       entries[written].resourceIndex = record.resourceIndex;
       entries[written].status = record.status;
+      entries[written].certificateAnchorId = record.certificateAnchorId;
+      entries[written].certificateExpiring = record.certificateExpiring;
       ++written;
     }
   }
