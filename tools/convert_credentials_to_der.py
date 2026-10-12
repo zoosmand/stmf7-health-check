@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Convert a PEM certificate/key pair to DER for the management API upload."""
+"""Convert a PEM certificate/key pair to DER for the management API upload.
+
+Copyright (c) 2017-2026 Dmitry Slobodchikov. All rights reserved.
+"""
 
 from __future__ import annotations
 

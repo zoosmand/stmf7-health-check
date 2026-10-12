@@ -37,6 +37,11 @@ typedef enum {
   TLS_SERVER_CREDENTIALS_STATUS_STORAGE_ERROR
 } TlsServerCredentials_StatusTypeDef;
 
+/**
+  * @brief Load the newest valid credential override or the compiled fallback.
+  * @retval (HealthCheck_StatusTypeDef) Credential-storage initialization
+  *         result.
+  */
 HealthCheck_StatusTypeDef TlsServerCredentials_Init(void);
 
 /**
@@ -80,6 +85,8 @@ void TlsServerCredentials_GetCertificate(const uint8_t** data, size_t* length);
 
 /**
   * @brief Return the private key to present for the next TLS connection.
+  * @param data (const uint8_t**) Non-null active-key pointer output.
+  * @param length (size_t*) Non-null active-key length output.
   * @note Same locking precondition as TlsServerCredentials_GetCertificate.
   */
 void TlsServerCredentials_GetPrivateKey(const uint8_t** data, size_t* length);

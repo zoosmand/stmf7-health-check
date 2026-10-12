@@ -33,9 +33,9 @@ Access is serialized by a statically allocated FreeRTOS mutex.
 
 The NUCLEO-F767ZI B1 user button uses its default active-high `PC13` connection.
 Firmware configures the pin as an input without an internal pull resistor and
-polls it from a FreeRTOS service. Holding B1 for five seconds initiates factory
-reset; short presses are ignored. This assumes the board's default B1 solder-
-bridge configuration remains unchanged.
+polls it from a FreeRTOS service. Holding B1 continuously for ten seconds starts
+the warning and cancellation sequence; short presses are ignored. This assumes
+the board's default B1 solder-bridge configuration remains unchanged.
 
 ## Diagnostic console
 
@@ -60,12 +60,13 @@ from the GPIO:
 
 The MCU pin drives the transistor base through a series resistor; the buzzer
 itself is powered through the transistor's collector/emitter path, never by
-the GPIO pin directly. TIM2 channel 4 produces a fixed 2.5 kHz square wave at
-roughly 50% duty. Outside an active tone, `PA3` is reconfigured as a plain low
-GPIO output and TIM2's counter and channel output are both disabled, because
-TIM2 has no output idle-state control (that feature exists only on
-advanced-control timers) and the pin state while the channel is merely
-disabled is otherwise unspecified.
+the GPIO pin directly. TIM2 channel 4 produces roughly 50% duty-cycle tones;
+startup, reset, and resource-ID beeps use the default 2.5 kHz frequency, while
+health and certificate alerts select their documented pattern frequencies.
+Outside an active tone, `PA3` is reconfigured as a plain low GPIO output and
+TIM2's counter and channel output are both disabled, because TIM2 has no output
+idle-state control (that feature exists only on advanced-control timers) and
+the pin state while the channel is merely disabled is otherwise unspecified.
 
 ## Ethernet identity
 
@@ -74,3 +75,7 @@ The firmware derives the Ethernet MAC address from the STM32F767's factory
 marked as locally administered and unicast; no globally assigned vendor OUI is
 claimed. Startup output prints the resulting address for DHCP reservations and
 device identification.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

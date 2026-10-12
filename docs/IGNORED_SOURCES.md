@@ -63,3 +63,7 @@ provenance, then use a dedicated submodule or narrowly change `.gitignore`.
 Never force-add an entire ignored tree without reviewing its contents. Build
 artifacts, logs, editor settings, credentials, private keys, and generated
 secret-bearing files must remain untracked.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

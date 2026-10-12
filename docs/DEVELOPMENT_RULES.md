@@ -42,8 +42,8 @@ before continuing.
 
 - Follow [the project naming conventions](NAMING_CONVENTIONS.md).
 - Keep imported vendor and middleware code in its upstream style.
-- Preserve the established ownership of `Core`, `Periph`, `Srv`, `lwip`, and
-  the future `TLS` tree.
+- Preserve the established ownership of `Core`, `Periph`, `Srv`, `TLS`, and
+  project-owned `lwip/system` integration code.
 - Document public interfaces, structures, units, blocking behavior, ownership,
   and task or interrupt restrictions where relevant.
 - Keep comments focused on design intent, hardware constraints, and non-obvious
@@ -138,3 +138,7 @@ After a successful merge:
 
 Do not close an issue when required work remains. Record deferred work in a new
 issue or explicitly document it as an accepted limitation.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

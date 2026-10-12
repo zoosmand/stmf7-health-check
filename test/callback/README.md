@@ -26,3 +26,7 @@
 9. Reboot after configuration changes and confirm the newest valid A/B snapshot
    is restored. Interrupt a factory reset and confirm recovery erases callback
    configuration before the device resumes normal startup.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

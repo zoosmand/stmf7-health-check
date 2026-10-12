@@ -16,3 +16,7 @@
    Confirm `queue_depth` never exceeds three and `dropped_count` increments
    once for each displaced oldest event.
 7. Restart the MCU and confirm callback counters and last-result fields reset.
+
+---
+
+Copyright © 2017-2026 Dmitry Slobodchikov.

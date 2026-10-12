@@ -188,6 +188,8 @@ TIM2's counter and channel output stay disabled whenever no
 tone is playing, and `PA3` is held as a plain low output outside an active tone,
 so the transistor base is never left floating. Factory reset uses five long
 warning beeps; a successful cancellation uses three long acknowledgement beeps.
+The administrator-only buzzer test endpoints use the same queue as live alerts;
+repeated test requests can fill it and should not be run during monitoring.
 
 ## Factory reset
 
@@ -197,6 +199,11 @@ then play, followed by a ten-second cancellation window. Button clicks during
 the warning sequence are ignored. After the fifth beep finishes, release B1
 and double-click it within 600 ms to cancel; three acknowledgement beeps
 confirm the cancellation and normal monitoring resumes.
+
+A reset event clears queued alerts but does not interrupt a pattern already
+playing. In that case the warning tones can start late and overlap the beginning
+of the nominal cancellation window; wait for the active alert and warning tones
+to finish before entering the cancellation double-click.
 
 If the cancellation window expires, the firmware stores a durable reset marker,
 then erases resources and their period, callback configuration, trust anchors,
@@ -356,5 +363,7 @@ The F767 differs in cache coherency, DMA-visible memory, interrupt behavior,
 clocking, and linker layout. Ethernet DMA descriptors and packet buffers need
 particular attention because D-cache can make otherwise correct F407 code fail
 on Cortex-M7.
+
+---
 
 Copyright © 2017-2026 Dmitry Slobodchikov.

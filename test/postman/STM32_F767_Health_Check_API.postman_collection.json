@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a7ed9183-c25b-4ec7-8fc4-df47ca130010",
     "name": "STM32 F767 Health Check API",
-    "description": "Environment-driven requests for the STM32F767 health-check API. Select an environment containing baseUrl, username, and password; authentication scripts maintain accessToken and refreshToken in that environment.",
+    "description": "Environment-driven requests for the STM32F767 health-check API. Select an environment containing baseUrl, username, and password; authentication scripts maintain accessToken and refreshToken in that environment. Copyright (c) 2017-2026 Dmitry Slobodchikov. All rights reserved.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
